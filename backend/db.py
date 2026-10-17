@@ -121,6 +121,56 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 -- Small app settings, such as the supplier research answers last used (to pre-fill the next run).
+-- One page per supplier company the team has looked into, across all requests.
+CREATE TABLE IF NOT EXISTS companies (
+    pk         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    website    TEXT,
+    country    TEXT,
+    created_at TEXT NOT NULL
+);
+
+-- Notes the team jots down about a company, tagged with the stage and a topic.
+CREATE TABLE IF NOT EXISTS company_notes (
+    pk            INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_pk    INTEGER NOT NULL REFERENCES companies(pk),
+    submission_pk INTEGER,
+    stage         TEXT NOT NULL,
+    tag           TEXT NOT NULL,
+    text          TEXT NOT NULL,
+    author        TEXT NOT NULL,
+    created_at    TEXT NOT NULL
+);
+
+-- Emails to and from a company. DRAFT until a person approves; then sent through Microsoft 365.
+CREATE TABLE IF NOT EXISTS emails (
+    pk              INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_pk      INTEGER NOT NULL REFERENCES companies(pk),
+    submission_pk   INTEGER,
+    meeting_pk      INTEGER,
+    direction       TEXT NOT NULL,             -- out or in
+    status          TEXT NOT NULL,             -- DRAFT, SENT, RECEIVED
+    address         TEXT NOT NULL,             -- the company's address (to, or from for replies)
+    subject         TEXT NOT NULL,
+    body            TEXT NOT NULL,
+    m365_id         TEXT,
+    conversation_id TEXT,
+    approved_by     TEXT,
+    at              TEXT NOT NULL
+);
+
+-- The pretend mailbox and calendar used when HUB_M365=demo.
+CREATE TABLE IF NOT EXISTS m365_demo_items (
+    pk         INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind       TEXT NOT NULL,                  -- sent, received or event
+    thread     TEXT NOT NULL,
+    sender     TEXT NOT NULL,
+    recipient  TEXT NOT NULL,
+    subject    TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -174,6 +224,8 @@ MIGRATIONS = {
     "agent_runs": {"input_tokens": "INTEGER", "output_tokens": "INTEGER", "cost_usd": "REAL",
                    "fallback_used": "INTEGER NOT NULL DEFAULT 0"},
     "solutions": {"kind": "TEXT NOT NULL DEFAULT 'tool'"},
+    # Milestone 12: the Outlook calendar event behind a meeting booked through Microsoft 365.
+    "meetings": {"m365_event_id": "TEXT"},
 }
 
 # Fictional starting records, so the inbox is not empty on first run.

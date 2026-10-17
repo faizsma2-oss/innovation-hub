@@ -11,7 +11,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import budget, db
+from . import budget, db, examples
+from .companies.routes import router as companies_router
 from .intake.routes import router as intake_router
 from .intake.brain import get_brain
 from .models import DEMO_USER, Status, SubmissionIn, SubmissionOut
@@ -93,6 +94,7 @@ async def visitor_sandbox(request, call_next):
         if not file.exists():               # a fresh copy of the demo for this visitor
             db.init_db()
             screening.screen_unscreened()
+            examples.seed()                 # fictional requests at every later stage
         else:
             file.touch()                    # still in use: keep it another 24 hours
         response = await call_next(request)
@@ -116,13 +118,14 @@ app.include_router(pilot_router)
 app.include_router(meetings_router)
 app.include_router(scale_router)
 app.include_router(reports_router)
+app.include_router(companies_router)
 
 
 # 3. Routes. Each one pairs an address with a function.
 @app.get("/api/health")
 def health():
     brain = get_brain()
-    return {"status": "ok", "milestone": "11", "brain": brain.name,
+    return {"status": "ok", "milestone": "12", "brain": brain.name,
             "public_demo": SANDBOXES, "budget": budget.status()}
 
 

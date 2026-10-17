@@ -1,0 +1,24 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.19",
+  "version": "1.0.0",
+  "id": "${{TEAMS_APP_ID}}",
+  "developer": {
+    "name": "Innovation Hub demo (Faaizah Ismail)",
+    "websiteUrl": "https://innovation-hub-demo.onrender.com",
+    "privacyUrl": "https://innovation-hub-demo.onrender.com",
+    "termsOfUseUrl": "https://innovation-hub-demo.onrender.com"
+  },
+  "icons": {"color": "color.png", "outline": "outline.png"},
+  "name": {"short": "Innovation Hub", "full": "Innovation Hub supplier assistant"},
+  "description": {
+    "short": "Ask Copilot where the innovation team stands with each supplier.",
+    "full": "A Copilot agent that answers from the Innovation Hub's records: supplier stage, official contacts, emails, Teams meetings and their summaries, open actions and the team's notes. Read-only: emails are approved and sent in the Hub."
+  },
+  "accentColor": "#0A84FF",
+  "copilotAgents": {
+    "declarativeAgents": [{"id": "innovationHubAgent", "file": "declarativeAgent.json"}]
+  },
+  "permissions": ["identity"],
+  "validDomains": ["innovation-hub-demo.onrender.com"]
+}

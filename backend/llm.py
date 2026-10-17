@@ -7,6 +7,7 @@ so each feature can fall back to its scripted version.
 import json
 import os
 import time
+from contextvars import ContextVar
 
 import anthropic
 
@@ -18,14 +19,19 @@ PRICES = {"input": 4.00, "output": 20.00, "cache_write": 5.00, "cache_read": 0.2
 WEB_SEARCH_PRICE = 0.01  # USD per web search ($10 per 1,000)
 
 
+# Set while the example records are seeded (backend/examples.py): scripted versions only, so a
+# new sandbox never waits on Claude or the web.
+scripted_only: ContextVar[bool] = ContextVar("scripted_only", default=False)
+
+
 class LLMError(Exception):
     """Anything that means Claude's answer can't be used."""
 
 
 def claude_enabled(kind: str = "ai") -> bool:
     """Claude when an API key is available, unless HUB_BRAIN=mock forces the scripted versions,
-    or (on the public demo) a spending cap has been reached."""
-    return (os.environ.get("HUB_BRAIN", "auto") != "mock" and bool(os.environ.get("ANTHROPIC_API_KEY"))
+    examples are being seeded, or (on the public demo) a spending cap has been reached."""
+    return (not scripted_only.get() and os.environ.get("HUB_BRAIN", "auto") != "mock" and bool(os.environ.get("ANTHROPIC_API_KEY"))
             and budget.allows(kind))
 
 

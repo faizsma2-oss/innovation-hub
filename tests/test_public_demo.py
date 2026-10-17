@@ -31,7 +31,7 @@ def test_each_visitor_has_a_private_copy_of_the_demo(public):
         alice_titles = [s["title"] for s in alice.get("/api/submissions").json()]
         bob_titles = [s["title"] for s in bob.get("/api/submissions").json()]
         assert "Alice's idea" in alice_titles and "Alice's idea" not in bob_titles
-        assert len(bob_titles) == 3                                  # Bob starts from the clean demo
+        assert len(bob_titles) == 9                                  # Bob starts from the clean demo (3 + 6 examples)
         assert bob.get(f"/api/submissions/{created['id']}").status_code == 404
         assert len(list((public / "sandboxes").glob("*.db"))) == 2
 
@@ -145,5 +145,5 @@ def test_new_sandbox_never_calls_claude_even_with_a_key(public, monkeypatch):
         assert newcomer.get("/").status_code == 200
         assert not list((public / "sandboxes").glob("*.db"))          # the page alone creates nothing
         records = newcomer.get("/api/submissions").json()
-        assert len(records) == 3 and all(r["brief"] for r in records)
+        assert len(records) == 9 and all(r["brief"] for r in records)
     assert calls == []

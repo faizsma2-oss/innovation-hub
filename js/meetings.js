@@ -132,11 +132,15 @@ function renderMeeting(m) {
       ${(plan.flags ?? []).map(f => `<p class="warning">${escapeText(f)}</p>`).join('')}
       <input id="mt-subject" value="${escapeText(plan.email_subject)}" aria-label="Subject">
       <textarea id="mt-body" rows="9" aria-label="Email">${escapeText(plan.email_body)}</textarea>
-      <div class="inline-row">
+      ${isEmail(m.contact) ? `<label class="approve"><input type="checkbox" id="mt-approve"> I've read this and approve sending it to ${escapeText(m.contact)}
+          ${typeof m365Mode !== 'undefined' && m365Mode === 'graph' ? 'from my Outlook' : '(demo mailbox)'}</label>
+        <div class="inline-row"><button type="button" class="primary" id="mt-send" disabled>Approve &amp; send</button></div>
+        <p class="muted">Or do it yourself: <a href="#" id="mt-outlook">open in Outlook</a>, send it, then <button type="button" class="link" id="mt-sent">mark as sent</button>.</p>`
+      : `<div class="inline-row">
         <a class="button primary" id="mt-outlook" href="#">Open in Outlook</a>
         <button type="button" id="mt-sent">I've sent it</button>
       </div>
-      <p class="muted">Opens a new email in your email app with this text${m.contact ? ` addressed to ${escapeText(m.contact)}` : ''}. Edit freely, then send it yourself.</p>`;
+      <p class="muted">No official email contact was chosen, so the Hub can't send it. Opens a new email in Outlook; add the address and send it yourself.</p>`}`;
   }
   if (m.status === 'invite_sent') {
     const followUp = `Dear ${m.supplier} team,\n\nI wanted to follow up on my note about an introductory call. Would any time next week suit you?\n\nKind regards,\n[Your name]`;
@@ -149,7 +153,9 @@ function renderMeeting(m) {
         <input type="datetime-local" id="mt-start" required value="${escapeText(m.start_at ?? '')}" aria-label="Start (UAE time)">
         <select id="mt-duration">${[30, 45, 60, 90].map(n => `<option ${n === (m.duration_min ?? 45) ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <input id="mt-teams" placeholder="Teams join link (create it in Outlook: New Teams meeting)" value="${escapeText(m.teams_link ?? '')}">
-        <button type="submit">${m.status === 'scheduled' ? 'Update' : 'Confirm'}</button></form>`;
+        <button type="submit">${m.status === 'scheduled' ? 'Update' : 'Confirm'}</button>
+        <button type="button" class="primary" id="mt-book">Book in Outlook with Teams</button></form>
+      <p class="muted">"Book" creates the Outlook calendar event with a Teams link and invites the supplier contact${typeof m365Mode !== 'undefined' && m365Mode === 'graph' ? '' : ' (demo: a fictional Teams link)'}. "Confirm" just records a time you booked yourself.</p>`;
   }
   if (m.status === 'scheduled') {
     html += `<div class="gate ready"><p><strong>${escapeText(when(m.start_at))}</strong> (UAE time), ${m.duration_min} minutes
@@ -159,6 +165,7 @@ function renderMeeting(m) {
   }
   if (['scheduled', 'invite_sent', 'held'].includes(m.status)) {
     html += `<h4>${m.status === 'held' ? 'Update the debrief' : 'After the meeting'}</h4>
+      ${m.teams_link ? '<div class="inline-row"><button type="button" id="mt-transcript">Fetch the Teams transcript</button><span class="muted" id="mt-transcript-status"></span></div>' : ''}
       <form id="mt-debrief"><textarea id="mt-notes" rows="6" minlength="20" required
         placeholder="Paste the Teams Copilot recap, a transcript, or your notes: who attended, what was said, what was agreed…">${escapeText(m.notes ?? '')}</textarea>
       <button type="submit" class="primary">Summarise, find actions and next steps</button></form>`;
@@ -203,6 +210,25 @@ function wireMeeting(m) {
     get('mt-outlook').onclick = event => { event.currentTarget.href = mailto(m.contact, get('mt-subject').value, get('mt-body').value); };
   }
   if (get('mt-sent')) get('mt-sent').onclick = () => act('sent', {}, get('mt-sent'));
+  if (get('mt-approve')) get('mt-approve').onchange = event => { get('mt-send').disabled = !event.target.checked; };
+  if (get('mt-send')) get('mt-send').onclick = () => {
+    get('mt-send').textContent = 'Sending…';
+    act('send-invite', {confirm: get('mt-approve').checked, subject: get('mt-subject').value, body: get('mt-body').value}, get('mt-send'));
+  };
+  if (get('mt-book')) get('mt-book').onclick = () => {
+    if (!get('mt-start').value) { get('meeting-error').textContent = 'Pick the date and time first.'; return; }
+    get('mt-book').textContent = 'Booking…';
+    act('book', {start_at: get('mt-start').value, duration_min: Number(get('mt-duration').value)}, get('mt-book'));
+  };
+  if (get('mt-transcript')) get('mt-transcript').onclick = async () => {
+    get('mt-transcript').disabled = true;
+    const result = await postJson(`/api/meetings/${m.id}/transcript`, {}, 'meeting-error');
+    get('mt-transcript').disabled = false;
+    if (result) {
+      get('mt-notes').value = result.text;
+      get('mt-transcript-status').textContent = `${result.source} pasted below. Check it, then summarise.`;
+    }
+  };
   if (get('mt-schedule')) get('mt-schedule').onsubmit = event => {
     event.preventDefault();
     act('schedule', {start_at: get('mt-start').value, duration_min: Number(get('mt-duration').value),

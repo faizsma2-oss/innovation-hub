@@ -509,3 +509,27 @@ a.button:hover { background: var(--fill-strong); }
 @media (max-width: 800px) { .board { grid-auto-columns: minmax(180px, 80%); } }
 #case-decision .inline-row label { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
 #case-decision input[type=radio] { width: auto; accent-color: var(--accent); }
+
+/* ── 19. Supplier company pages ─────────────────────────────────────────── */
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.company-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 18px; text-align: left;
+  border-radius: var(--radius-large); background: var(--surface); box-shadow: var(--shadow); font-size: 13px; }
+.company-card strong { font-size: 17px; letter-spacing: -0.01em; }
+.company-card:hover { background: var(--surface); transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.company-card .flag, .notes-list .flag { color: var(--warn); font-weight: 600; }
+.draft-email { margin: 12px 0; padding: 14px 16px; border-radius: 16px; background: color-mix(in srgb, var(--accent) 7%, transparent); display: grid; gap: 8px; }
+.draft-email p { margin: 0; }
+.approve { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.approve input { width: auto; accent-color: var(--accent); }
+.email-thread { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
+.email-thread li { padding: 12px 14px; border-radius: 16px; background: var(--fill); font-size: 14px; }
+.email-thread li.in { background: color-mix(in srgb, var(--good) 10%, transparent); }
+.email-thread p { margin: 0 0 4px; }
+.email-text { white-space: pre-wrap; }
+.notes-list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; font-size: 14px; }
+.notes-list p { margin: 4px 0 0; }
+.copilot-box { margin-top: 18px; padding: 10px 14px; border-radius: 16px; background: var(--fill); font-size: 14px; }
+.copilot-box summary { font-weight: 600; color: var(--accent); }
+.copilot-box pre { max-height: 320px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
+.timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 13px; }
+#company-body .notice { margin: 12px 0 18px; max-width: none; text-align: left; }

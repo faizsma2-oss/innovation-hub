@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/plugin/v2.4/schema.json",
+  "schema_version": "v2.4",
+  "name_for_human": "Innovation Hub",
+  "namespace": "innovationhub",
+  "description_for_human": "Supplier status from the Innovation Hub: stage, contacts, meetings, actions and notes.",
+  "description_for_model": "Use this when the user asks about a supplier, vendor or partner company the innovation team is exploring, or about supplier meetings, emails, follow-ups, pilots or open actions. listCompanies finds companies by name; getCompanyStatus returns everything recorded about one company.",
+  "functions": [
+    {
+      "name": "listCompanies",
+      "description": "List supplier companies, optionally filtered by part of the name, with stage, last contact, next meeting and number of open actions.",
+      "capabilities": {
+        "confirmation": {"type": "None", "isNonConsequential": true},
+        "security_info": {"data_handling": ["GetPrivateData"]}
+      }
+    },
+    {
+      "name": "getCompanyStatus",
+      "description": "Everything recorded about one company by its id (CO-0001): stage, requests, official contacts, recent emails, meetings with summaries, open actions with owners and due dates, research facts and the team's notes.",
+      "states": {
+        "responding": {
+          "instructions": [
+            "Only use facts present in the JSON response.",
+            "If a field is empty or missing, say it is not recorded rather than guessing.",
+            "Owners shown as UNASSIGNED have no owner yet: point that out."
+          ]
+        }
+      },
+      "capabilities": {
+        "confirmation": {"type": "None", "isNonConsequential": true},
+        "security_info": {"data_handling": ["GetPrivateData"]}
+      }
+    }
+  ],
+  "runtimes": [
+    {
+      "type": "OpenApi",
+      "auth": {"type": "ApiKeyPluginVault", "reference_id": "${{HUB_COPILOT_KEY_REGISTRATION_ID}}"},
+      "spec": {"url": "openapi.json"},
+      "run_for_functions": ["listCompanies", "getCompanyStatus"]
+    }
+  ]
+}

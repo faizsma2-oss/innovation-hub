@@ -1,4 +1,4 @@
-# Innovation Hub — Milestone 11
+# Innovation Hub — Milestone 12
 
 **Live demo: https://innovation-hub-demo.onrender.com.** Each visitor gets a private copy that resets after 24 hours. If the site has been idle, the first load takes about a minute to wake up.
 
@@ -80,6 +80,15 @@ Browsers always check for newer scripts and styles (the server sends `Cache-Cont
 4. **Correct the screening** (for example, change the alignment score), then confirm a decision. The measures at the top update.
 5. Back in the **Employee view**, open the IT request and click **Request innovation review**. It now appears in **Employee-requested reviews**.
 6. **Innovation team → Portfolio**: every opportunity by stage, with its owner and days in stage. Click **Prepare this week's report** for a management update you can copy into an email.
+7. **The later stages, without walking the pipeline:** every new sandbox also holds six fictional example requests (titles start with *Example:*, submitted by `example-employee`), one at each later stage. Open them from the Portfolio:
+   - **Choose a solution:** contractor access approvals, with ranked solution options waiting for a pick.
+   - **Research:** chiller alarms, with a fictional supplier comparison, a shortlist and drafted outreach.
+   - **Pilot running:** cooling tower readings, with baseline and pilot measurements and an observation.
+   - **Scaling:** UPS battery tests, with a calculated business case **awaiting a management decision**.
+   - **In operation:** rack power readings, handed over to a business owner, with a 3-month benefits check-in and a published lesson.
+   - **Stopped:** fibre patch records, a pilot that showed no clear change, with its lesson.
+
+   The Portfolio page already shows an example weekly report. The examples are built through the same routes as a reviewer's clicks, with the scripted assistants only (no Claude or web calls, under a second). Locally, add them to `data/hub.db` with `python -m backend.examples`.
 
 ## How it fits together
 
@@ -192,7 +201,14 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
   - The board shows every opportunity by stage, with owner, approach, partner and days in stage.
   - The weekly report collects decisions needed, what moved, results, budgets approved, benefits realised, meetings, overdue actions, blockers and AI spend, each line linked to its request. The AI writes only the summary, and **Copy as text** gives an email you send yourself.
   - Today reminders now include business cases awaiting a decision and benefit check-ins that are due.
-- 167 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Supplier companies and Microsoft 365** (`backend/companies/`, `backend/m365/`, guide in `docs/microsoft-365.md`):
+  - **One page per company** the team has looked into, across all requests: research facts, official contacts, every email and reply, meetings with summaries, open actions, notes and a timeline. Its stage is worked out from the records: shortlisted → contacted → meeting held → pilot partner → scaling → in operation (or not chosen).
+  - **Approve & send:** emails are drafted in the Hub and go out only after a person ticks "I've read this" and clicks Approve & send, from their own Outlook, and only to an official contact on that company's page. **Check for replies** brings answers onto the page.
+  - **Meetings:** approve and send the invitation from the meeting, **Book in Outlook with Teams** (UAE time, supplier invited), then **Fetch the Teams transcript**, check it and summarise into actions.
+  - **Notes** tagged by topic (requirement, pilot needed, pricing, security, risk, decision, next step) and stage.
+  - **Copilot agent** (`copilot/appPackage/`): a declarative agent with a read-only API plugin, so the team can ask Copilot in Teams or Outlook "where are we with this supplier?" and get an answer from the Hub's records. Each company page shows exactly what Copilot sees.
+  - The public demo uses a **demo mailbox** with fictional replies, Teams links and transcripts. The real Microsoft Graph connector is built and tested against a fake Graph; switching it on needs Khazna IT to register the app and grant consent.
+- 181 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 
@@ -255,6 +271,7 @@ Every milestone leaves a working demo. The AI arrives only after the app can sto
 | 6e | **Pilot run and evaluation** ✅ | Measuring against a baseline, noise versus real change, inconclusive results, human scale/stop decisions | Setup gate, baseline before start, calculated verdict, four decisions with history; tested |
 | 6f | **Supplier meetings** ✅ | Official contacts, drafts not sends, `.ics` invites, debriefs into actions, reminders | Contacts checked against sources; meeting lifecycle; Today panel |
 | 6g | **Scale, hand over, benefits, lessons, portfolio** ✅ | Business cases from measured data, handover gates, benefits realisation, feedback loops, management reporting | Every gate and calculation tested; lessons appear in the intake chat; weekly report lines link to their records |
+| 6h | **Supplier companies + Microsoft 365 + Copilot** ✅ (demo mailbox) | Approval gates for outbound email, Microsoft Graph, Teams transcripts, Copilot declarative agents and API plugins | Company pages; approve & send; replies, booking and transcripts in demo mode; Graph connector tested against a fake Graph; Copilot package builds |
 | 7 | **Public demo** ✅ | Git, hosting, per-visitor sandboxes (see `docs/hosting-plan.md`) | Interviewers can open a link and try the intake chat |
 | 8 | **Projects + meeting notes → actions** | Turning accepted submissions into projects; workflow 1 of the agent | `meeting-01` eval passes, and actions appear in the project for approval |
 | 9 | **Vendor documents → evidence comparison** | File uploads, evidence labels, prompt-injection defence | Comparison cites a source for every claim and ignores instructions inside documents |
