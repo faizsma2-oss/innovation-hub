@@ -1,5 +1,7 @@
 # Innovation Hub — Milestone 9
 
+**Live demo: https://innovation-hub-demo.onrender.com.** Each visitor gets a private copy that resets after 24 hours. If the site has been idle, the first load takes about a minute to wake up.
+
 A learning project by Faaizah Ismail. Independent portfolio demonstration, not an official Khazna application. All data is fictional.
 
 **One employee-facing entry point, two linked processes:** getting help today, and identifying improvements worth exploring. Routine requests reach the department that resolves them. The innovation team receives clear opportunities, with a brief and a transparent priority. The full design is in `docs/intake-agent-workflow.md`.
