@@ -1,0 +1,25 @@
+# Render blueprint: Render reads this file from the repository and sets up the web service.
+# The API key is NOT in here: Render asks for it during setup and stores it as a secret.
+services:
+  - type: web
+    name: innovation-hub-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: fastapi run backend/main.py --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.15
+      - key: HUB_SANDBOXES          # a private copy of the demo for each visitor
+        value: "on"
+      - key: HUB_SPEND_CAPS         # spending caps on Claude
+        value: "on"
+      - key: HUB_VISITOR_DAILY_USD
+        value: "0.50"
+      - key: HUB_DAILY_USD
+        value: "5.00"
+      - key: HUB_WEB_RUNS_PER_VISITOR
+        value: "1"
+      - key: ANTHROPIC_API_KEY      # entered in Render during setup, never committed
+        sync: false

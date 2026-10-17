@@ -1,0 +1,200 @@
+"""Research API: solution options for an accepted request, the team's selection, and then
+supplier research for the chosen option.
+
+  Accepted ── Research AI proposes ranked options (PROPOSED) ── team may ask again with feedback
+           └─ team selects one option, with a reason ──▶ Research (plan drafted)
+  Research ── team answers the setup questions (factors, weights, where, prices)
+           └─ Research AI searches the web and compares suppliers ── team shortlists
+"""
+import json
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field, model_validator
+
+from .. import db
+from ..models import SubmissionOut
+from ..review.routes import DEMO_REVIEWER, load
+from . import suppliers
+from .researcher import CRITERIA, get_researcher
+
+router = APIRouter(tags=["research"])
+
+
+class OptionsIn(BaseModel):
+    feedback: str | None = Field(default=None, max_length=1000)  # "ask again" with what to change
+
+
+class SelectIn(BaseModel):
+    option_id: str = Field(min_length=1, max_length=2)
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+@router.get("/api/research/criteria")
+def research_criteria():
+    return [{"key": key, "name": name, "weight": weight} for key, (name, weight) in CRITERIA.items()]
+
+
+@router.post("/api/submissions/{submission_id}/solutions", response_model=SubmissionOut)
+def propose_solutions(submission_id: str, body: OptionsIn):
+    with db.connect() as conn:
+        record = load(conn, submission_id)
+        if record["status"] != "Accepted":
+            raise HTTPException(409, "Solution options are prepared only for accepted requests")
+        researcher, meter = get_researcher(), []
+        result = researcher.options(record, body.feedback, meter)
+        previous = record.get("solutions") or {}
+        solutions = result | {
+            "status": "PROPOSED",
+            "round": previous.get("round", 0) + 1,
+            "feedback": body.feedback,
+            "weights": {key: weight for key, (_, weight) in CRITERIA.items()},
+        }
+        pk = db.parse_pk(submission_id)
+        conn.execute("UPDATE submissions SET solutions_json = ? WHERE pk = ?", (json.dumps(solutions), pk))
+        log_run(conn, "solution_options", submission_id, researcher, meter, solutions)
+        titles = "; ".join(f"{o['rank']}. {o['title']} ({o['usefulness']})" for o in solutions["options"])
+        db.add_event(conn, pk, "research-ai", "options_proposed", None, None,
+                     (f"Round {solutions['round']} after feedback: {body.feedback}. " if body.feedback else "") + titles)
+        return db.get_submission(conn, submission_id)
+
+
+@router.post("/api/submissions/{submission_id}/solutions/select", response_model=SubmissionOut)
+def select_solution(submission_id: str, body: SelectIn):
+    with db.connect() as conn:
+        record = load(conn, submission_id)
+        if record["status"] != "Accepted":
+            raise HTTPException(409, "Only an accepted request with options can start research")
+        options = (record.get("solutions") or {}).get("options", [])
+        option = next((o for o in options if o["id"] == body.option_id), None)
+        if option is None:
+            raise HTTPException(422, "Choose one of the proposed options")
+        researcher, meter = get_researcher(), []
+        plan = researcher.plan(record, option, meter)
+        research = {
+            "status": "Research started",
+            "selected_option": option,
+            "selected_rank": option["rank"],
+            "agreed_with_top_rank": option["rank"] == 1,
+            "reason": body.reason.strip(),
+            "selected_by": DEMO_REVIEWER,
+            "started_at": db.now(),
+            "plan": plan,
+        }
+        pk = db.parse_pk(submission_id)
+        conn.execute("UPDATE submissions SET status = 'Research', research_json = ? WHERE pk = ?",
+                     (json.dumps(research), pk))
+        log_run(conn, "research_plan", submission_id, researcher, meter, research)
+        db.add_event(conn, pk, DEMO_REVIEWER, "option_selected", "Accepted", "Research",
+                     f"Option {option['id']} \"{option['title']}\" (ranked {option['rank']}): {body.reason.strip()}")
+        return db.get_submission(conn, submission_id)
+
+
+def log_run(conn, workflow: str, submission_id: str, researcher, meter: list, output: dict):
+    last = meter[-1] if meter else {"brain": researcher.name, "version": researcher.version}
+    conn.execute("INSERT INTO agent_runs (workflow, session_id, prompt_version, model, input_text, output_json,"
+                 " created_at, input_tokens, output_tokens, cost_usd, fallback_used)"
+                 " VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 (workflow, last["version"], last["brain"], submission_id, json.dumps(output | {"calls": meter}),
+                  db.now(), sum(m.get("input_tokens", 0) for m in meter), sum(m.get("output_tokens", 0) for m in meter),
+                  round(sum(m.get("cost_usd", 0) for m in meter), 5), int(any(m.get("fallback") for m in meter))))
+
+
+# ── Supplier research (after an option is chosen) ────────────────────────────
+
+class FactorIn(BaseModel):
+    key: str = Field(min_length=1, max_length=60)
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=300)
+    importance: Literal["must", "high", "medium", "low"]
+
+
+class SupplierSetupIn(BaseModel):
+    factors: list[FactorIn] = Field(min_length=1, max_length=15)
+    geography: Literal["uae_first", "uae_gcc", "global"]
+    cost_policy: Literal["published_only", "estimates", "relative"]
+    supplier_count: int = Field(ge=3, le=6)
+    notes: str = Field(default="", max_length=1000)
+
+    @model_validator(mode="after")
+    def check(self):
+        if len({f.key for f in self.factors}) != len(self.factors):
+            raise ValueError("Each factor needs a different name")
+        if not any(f.importance != "must" for f in self.factors):
+            raise ValueError("Choose at least one factor that isn't a must-have, so suppliers can be ranked")
+        return self
+
+
+class ShortlistIn(BaseModel):
+    names: list[str] = Field(min_length=1, max_length=6)
+    note: str = Field(default="", max_length=1000)
+
+
+SETUP_KEY = "supplier_setup_defaults"
+
+
+@router.get("/api/research/supplier-setup")
+def supplier_setup():
+    """The questions asked before every supplier search, pre-filled with the last answers used."""
+    with db.connect() as conn:
+        defaults = db.get_setting(conn, SETUP_KEY) or suppliers.default_setup()
+    return {"library": suppliers.FACTOR_LIBRARY, "geography": suppliers.GEOGRAPHY,
+            "cost_policy": suppliers.COST_POLICY, "defaults": defaults}
+
+
+@router.post("/api/submissions/{submission_id}/suppliers/suggest-factors")
+def suggest_factors(submission_id: str):
+    with db.connect() as conn:
+        record = in_research(conn, submission_id)
+        researcher, meter = suppliers.get_supplier_researcher(), []
+        factors = researcher.suggest_factors(record, record["research"]["selected_option"], meter)
+        log_run(conn, "supplier_factors", submission_id, researcher, meter, {"factors": factors})
+    return [f | {"key": suppliers.slug(f["name"])} for f in factors]
+
+
+@router.post("/api/submissions/{submission_id}/suppliers", response_model=SubmissionOut)
+def research_suppliers(submission_id: str, body: SupplierSetupIn):
+    setup = body.model_dump()
+    with db.connect() as conn:
+        record = in_research(conn, submission_id)
+        db.set_setting(conn, SETUP_KEY, setup)   # remembered to pre-fill the next run
+        researcher, meter = suppliers.get_supplier_researcher(), []
+        result = researcher.research(record, record["research"]["selected_option"], setup, meter)
+        research = record["research"]
+        previous = research.get("suppliers") or {}
+        research["suppliers"] = result | {"status": "PROPOSED", "setup": setup, "round": previous.get("round", 0) + 1,
+                                          "run_at": db.now(), "shortlist": None,
+                                          "cost_usd": round(sum(m.get("cost_usd", 0) for m in meter), 4)}
+        pk = db.parse_pk(submission_id)
+        conn.execute("UPDATE submissions SET research_json = ? WHERE pk = ?", (json.dumps(research), pk))
+        log_run(conn, "supplier_research", submission_id, researcher, meter, {"suppliers": len(result["suppliers"])})
+        db.add_event(conn, pk, "research-ai", "suppliers_found", None, None,
+                     f"{len(result['suppliers'])} suppliers compared on {len(setup['factors'])} factors "
+                     f"({setup['geography']}, {setup['cost_policy']}): "
+                     + "; ".join(f"{s['rank']}. {s['name']}" for s in result["suppliers"]))
+        return db.get_submission(conn, submission_id)
+
+
+@router.post("/api/submissions/{submission_id}/suppliers/shortlist", response_model=SubmissionOut)
+def shortlist_suppliers(submission_id: str, body: ShortlistIn):
+    with db.connect() as conn:
+        record = in_research(conn, submission_id)
+        found = (record["research"].get("suppliers") or {}).get("suppliers", [])
+        names = {s["name"] for s in found}
+        if not found or not set(body.names) <= names:
+            raise HTTPException(422, "Shortlist suppliers from the latest comparison")
+        research = record["research"]
+        research["suppliers"]["shortlist"] = {"names": body.names, "note": body.note.strip(),
+                                              "by": DEMO_REVIEWER, "at": db.now()}
+        pk = db.parse_pk(submission_id)
+        conn.execute("UPDATE submissions SET research_json = ? WHERE pk = ?", (json.dumps(research), pk))
+        db.add_event(conn, pk, DEMO_REVIEWER, "suppliers_shortlisted", None, None,
+                     ", ".join(body.names) + (f": {body.note.strip()}" if body.note.strip() else ""))
+        return db.get_submission(conn, submission_id)
+
+
+def in_research(conn, submission_id: str) -> dict:
+    record = load(conn, submission_id)
+    if record["status"] != "Research":
+        raise HTTPException(409, "Supplier research starts after a solution option is chosen")
+    return record
