@@ -7,9 +7,11 @@ scripted assistants only: seeding never calls Claude or the web (llm.scripted_on
 sandbox stays fast. Every title starts with "Example:" and every record is submitted by
 "example-employee", so they never appear as the demo employee's own requests.
 """
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from . import db, llm
+from .companies import routes as companies
+from .meetings import routes as meetings
 from .meetings import calendar
 from .reports import routes as reports
 from .research import evaluation, evaluation_routes as ev, pilot_routes as pilot, routes as research, suppliers
@@ -116,6 +118,7 @@ def build():
     research.shortlist_suppliers(in_research, research.ShortlistIn(
         names=[s["name"] for s in found[:2]], note="Example shortlist: the two closest fits."))
     ev.prepare(in_research, ev.SupplierIn(supplier=found[0]["name"]))
+    supplier_story(in_research, found[0]["name"], found[1]["name"], today)
 
     running = pilot_running("pilot", day)
     log_pilot(running, "pilot", "pilot", day)                   # 2 of the 3 points needed: still running
@@ -153,7 +156,75 @@ def build():
                 "the delay came from change approvals, not from data entry.",
         keywords=["fibre patch records", "patching records"]))
 
+    partner = db_record(running)["research"]["pilot"]["partner"]
+    note(partner, running, "Next step", "Example: weekly pilot check-in with the partner every Sunday at 10:00.")
+    note(partner, live, "Decision", "Example: renewed for a year at the quoted licence price; support moves to the "
+                                    "partner's UAE team from next quarter.")
+
     reports.weekly_report()
+
+
+# ── Supplier companies: contacts, emails, a reply, a held meeting with actions, notes ──
+
+def supplier_story(sid: str, first: str, second: str, today):
+    """What a fortnight with two shortlisted suppliers looks like (all fictional, demo mailbox)."""
+    fmt = lambda offset: f"{(today + timedelta(days=offset)).day} {(today + timedelta(days=offset)):%B}"
+    at = lambda offset, hour: datetime.combine(today + timedelta(days=offset), time(hour))
+    for supplier, kind, value, why in [
+            (first, "sales_email", "uae.sales@gulf-integrator.example", "Example: from their UAE contact page"),
+            (first, "regional_office", "Dubai Internet City, Dubai (fictional)", "Example: regional office"),
+            (first, "demo_booking_link", "https://gulf-integrator.example/book-a-demo", "Example: demo booking page"),
+            (second, "partnership_email", "partners@global-platform.example", "Example: partner programme page")]:
+        meetings.add_contact(sid, meetings.ContactIn(supplier=supplier, type=kind, value=value, note=why))
+
+    # First supplier: invitation approved and sent, they replied, a Teams meeting was held and debriefed.
+    meeting = meetings.plan_meeting(meetings.MeetingIn(
+        submission_id=sid, supplier=first, contact="uae.sales@gulf-integrator.example",
+        internal_attendees="Example Reviewer (Innovation), Example Engineer (Engineering)"))
+    plan = meeting["plan"]
+    companies.send_invitation(meeting["id"], companies.SendIn(confirm=True, subject=plan["email_subject"],
+                                                              body=plan["email_body"]))
+    first_id, second_id = company_id(first), company_id(second)
+    companies.check_replies(first_id)
+    # Put the thread a week back, before the meeting, with the reply offering the time that was then booked.
+    with db.connect() as conn:
+        conn.execute("UPDATE emails SET at = ? WHERE company_pk = ? AND direction = 'out'",
+                     (at(-8, 9).isoformat(timespec="seconds") + "+04:00", int(first_id[3:])))
+        conn.execute("UPDATE emails SET at = ?, body = ? WHERE company_pk = ? AND direction = 'in'",
+                     (at(-7, 14).isoformat(timespec="seconds") + "+04:00",
+                      "[DEMO REPLY, fictional]\n\nHello,\n\nThank you for reaching out. We'd be glad to show you alarm "
+                      f"grouping. Would {at(-3, 10):%A %d %B} at 10:00 (UAE time) work for a Teams call?\n\n"
+                      "Best regards,\nUAE sales team", int(first_id[3:])))
+    companies.book_meeting(meeting["id"], companies.BookIn(start_at=at(-3, 10), duration_min=45))
+    meetings.debrief(meeting["id"], meetings.NotesIn(notes=(
+        f"Example meeting notes (fictional). {first} showed alarm grouping on a sample of our BMS alarms. "
+        "They said related chiller alarms can be grouped into one incident, and that data stays in their Dubai "
+        "hosting. Example Reviewer will send three sample overnight alarm exports by " + fmt(-1) + ". "
+        f"The supplier will send the ISO 27001 certificate and a written quote by {fmt(3)}. "
+        "Example Engineer will check whether the BMS can export alarms every minute. "
+        "Both sides agreed a two-week pilot at one site is the next step if the quote is acceptable.")))
+
+    # Second supplier: an email waiting for someone to approve it.
+    companies.draft_email(second_id, companies.DraftIn(
+        to="partners@global-platform.example", subject="Example: alarm grouping for our overnight shift",
+        body="Dear Global Platform team,\n\nWe are comparing ways to group related chiller alarms so the overnight "
+             "shift handles one incident instead of dozens. Could you share whether your platform can run with "
+             "data hosted in the UAE, and suggest two times next week for a 45-minute Teams call?\n\n"
+             "Kind regards,\nInnovation team (example)", submission_id=sid))
+
+    note(first, sid, "Requirement", "Example: alarms must stay inside the BMS network; no direct internet "
+                                    "connection from the BMS.")
+    note(first, sid, "Pricing", f"Example: setup fee quoted verbally; written quote expected by {fmt(3)}.")
+    note(first, sid, "Pilot needed", "Example: they want two weeks of our own alarm history before a pilot.")
+    note(second, sid, "Security", "Example: SOC 2 report available on request; UAE hosting not confirmed yet.")
+
+
+def company_id(name: str) -> str:
+    return next(c["id"] for c in companies.list_companies() if c["name"] == name)
+
+
+def note(name: str, sid: str, tag: str, text: str):
+    companies.add_note(company_id(name), companies.NoteIn(text=text, tag=tag, submission_id=sid))
 
 
 # ── The steps, in the order a reviewer would take them ──────────────────────

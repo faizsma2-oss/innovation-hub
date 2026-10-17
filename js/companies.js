@@ -14,7 +14,7 @@ async function loadCompanies() {
       <strong>${escapeText(c.name)}</strong>
       <span class="chip chip-${['Not chosen', 'Stopped'].includes(c.stage) ? 'rec-decline' : 'rec-accept'}">${escapeText(c.stage)}</span>
       <span class="muted">${c.requests.map(r => escapeText(r.id)).join(', ')}${c.next_meeting ? ` · meeting ${escapeText(when(c.next_meeting))}` : ''}</span>
-      <span class="muted">${c.last_contact ? `Last contact ${escapeText(c.last_contact.slice(0, 10))}` : 'Not contacted yet'}${c.waiting_for_reply ? ' · <span class="flag">waiting for reply</span>' : ''}${c.open_actions ? ` · ${c.open_actions} open actions` : ''}</span>
+      <span class="muted">${c.last_contact ? `Last contact ${escapeText(c.last_contact.slice(0, 10))}` : 'Not contacted yet'}${c.waiting_for_reply ? ' · <span class="flag">waiting for reply</span>' : ''}${c.drafts ? ` · <span class="flag">${c.drafts} ${c.drafts === 1 ? 'email' : 'emails'} to approve</span>` : ''}${c.open_actions ? ` · ${c.open_actions} open actions` : ''}</span>
     </button>`).join('') : '<p class="muted">No companies yet. Shortlist suppliers in a request\'s research and they appear here.</p>';
   } catch { /* stays empty */ }
 }
@@ -59,7 +59,7 @@ function renderCompany(c) {
 
     <h4>Official contacts</h4>
     ${c.contacts.length ? `<ul class="contact-list">${c.contacts.map(x => `<li><span class="chip ${x.best ? 'chip-rec-accept' : ''}">${x.best ? 'Best route · ' : ''}${escapeText(x.label)}</span>
-      ${escapeText(x.value)} <span class="muted">${escapeText(x.region ?? '')}</span>
+      ${escapeText(x.value)} <span class="muted">${x.region && x.region !== 'unknown' ? escapeText(x.region) : x.added_by && x.added_by !== 'research-ai' ? 'added by the team' : ''}${x.note ? ` · ${escapeText(x.note)}` : ''}</span>
       ${isEmail(x.value) ? `<button type="button" class="link" data-write="${escapeText(x.value)}">Write</button>` : ''}</li>`).join('')}</ul>`
       : '<p class="muted">No contacts yet. Open the request and use "Find official contacts" under the supplier.</p>'}
 

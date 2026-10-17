@@ -133,12 +133,36 @@ class MockMeetingAssistant:
                 "flags": draft_flags(body), "generated_by": f"{self.name} {self.version}"}
 
     def debrief(self, record: dict, supplier: dict, meeting: dict, notes: str, meter: list | None = None) -> dict:
-        first = re.split(r"(?<=[.!?])\s+", notes.strip())[0][:300]
-        return {"summary": first, "decisions": [], "answers": [], "factor_updates": [], "risks": [], "actions": [],
-                "next_steps": [{"step": "Send the follow-up email and agree the next meeting", "why": "Keeps momentum"}],
-                "follow_up_subject": f"Thank you: {meeting['title']}",
-                "follow_up_body": f"Dear {supplier['name']} team,\n\nThank you for your time today. We'll come back to "
-                                  "you shortly with next steps.\n\nKind regards,\n[Your name]",
+        """Plain rules: "<Name> will <do something> by <when>" becomes an action. The owner and the deadline
+        are only ever words from the notes; otherwise UNASSIGNED / NO DATE AGREED."""
+        name = (supplier or {}).get("name") or meeting["supplier"]
+        text = re.sub(r"^\[[^\]]*\]\s*", "", notes.strip())                 # drop a "[DEMO …]" label
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+        actions = []
+        for sentence in sentences:
+            match = re.match(r"(?P<who>[A-Z][\w()' -]{0,40}?) will (?P<what>.+?)(?: by (?P<when>[^.;]+))?[.!]?$", sentence)
+            if not match:
+                continue
+            who = match["who"].strip()
+            owner = name if who.lower() in ("the supplier", "they", name.lower()) else \
+                "UNASSIGNED" if who.lower() in ("we", "someone", "the team") else who
+            what, when = match["what"].strip(), (match["when"] or "").strip()
+            if not when and what.endswith(" next week"):
+                what, when = what[: -len(" next week")], "next week"
+            actions.append({"action": what[:1].upper() + what[1:], "owner": owner, "deadline": when or "NO DATE AGREED"})
+        decisions = [s for s in sentences if re.search(r"\b(agreed|decided)\b", s, re.I)]
+        pilot = any("pilot" in d.lower() for d in decisions)
+        return {"summary": " ".join(sentences[:2])[:400], "decisions": decisions, "answers": [], "factor_updates": [],
+                "risks": [], "actions": actions,
+                "next_steps": ([{"step": "Prepare the pilot setup: success criteria, a named owner and the baseline",
+                                 "why": "A pilot was agreed in the meeting"}] if pilot else []) +
+                              [{"step": "Send the follow-up email confirming the actions", "why": "Keeps momentum"}],
+                "follow_up_subject": f"Thank you: {meeting['title']}"[:150],
+                "follow_up_body": f"Dear {name} team,\n\nThank you for your time today. As agreed:\n"
+                                  + "".join(f"- {a['action']} ({a['owner']}"
+                                            + (f", by {a['deadline']}" if a['deadline'] != 'NO DATE AGREED' else "") + ")\n"
+                                            for a in actions)
+                                  + "\nKind regards,\n[Your name]",
                 "flags": [], "generated_by": f"{self.name} {self.version}"}
 
 

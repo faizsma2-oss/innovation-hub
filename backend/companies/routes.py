@@ -380,7 +380,10 @@ def summary(conn, company) -> dict:
     return {"id": f"CO-{company['pk']:04d}", "name": company["name"], "website": company["website"],
             "country": company["country"], "stage": best_stage(links), "requests": links,
             "last_contact": last, "next_meeting": upcoming[0]["start_at"] if upcoming else None,
-            "open_actions": len(actions), "waiting_for_reply": bool(conn.execute(
+            "open_actions": len(actions),
+            "drafts": conn.execute("SELECT COUNT(*) FROM emails WHERE company_pk = ? AND status = 'DRAFT'",
+                                   (company["pk"],)).fetchone()[0],
+            "waiting_for_reply": bool(conn.execute(
                 "SELECT 1 FROM emails o WHERE o.company_pk = ? AND o.status = 'SENT' AND NOT EXISTS (SELECT 1 FROM emails i"
                 " WHERE i.conversation_id = o.conversation_id AND i.direction = 'in')", (company["pk"],)).fetchone())}
 

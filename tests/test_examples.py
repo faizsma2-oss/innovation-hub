@@ -34,6 +34,17 @@ def test_new_sandbox_has_an_example_in_every_stage(public, monkeypatch):
         assert live["scale"]["checkins"][0]["result"] and live["lesson"]["id"].startswith("LES-")
         assert by_status["Stopped"]["research"]["lesson"]["kind"] == "previous_pilot"
 
+        # The supplier pages aren't empty: contacts, an approved email and its reply, a held meeting with
+        # actions (owners and dates from the notes), a draft waiting for approval, and tagged notes.
+        pages = {c["name"]: visitor.get(f"/api/companies/{c['id']}").json() for c in visitor.get("/api/companies").json()}
+        met = next(p for p in pages.values() if any(m["status"] == "held" for m in p["meetings"]))
+        assert {(e["direction"], e["status"]) for e in met["emails"]} == {("out", "SENT"), ("in", "RECEIVED")}
+        assert met["actions"] and any(a["owner"] == "Example Reviewer" and a["due"] for a in met["actions"])
+        assert {n["tag"] for n in met["notes"]} >= {"Requirement", "Pricing", "Pilot needed"}
+        assert any(e["status"] == "DRAFT" for p in pages.values() for e in p["emails"])
+        assert all(p["contacts"] for p in pages.values())
+        assert any(i["kind"] == "overdue" for i in visitor.get("/api/reminders").json()["items"])
+
         report = visitor.get("/api/reports").json()[0]
         assert report["decisions_needed"] and report["moved"] and report["summary"]
         assert "Example:" in visitor.get("/api/submissions").text

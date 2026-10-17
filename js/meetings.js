@@ -5,7 +5,7 @@
 const STATUS_LABELS = {planned: 'Draft ready', invite_sent: 'Waiting for reply', scheduled: 'Scheduled',
   held: 'Held', cancelled: 'Cancelled'};
 const REMINDER_ICONS = {follow_up: '✉️', needs_notes: '📝', upcoming: '📅', overdue: '⏰', due_soon: '⏳',
-  no_owner: '👤', pilot_ended: '🧪'};
+  no_owner: '👤', pilot_ended: '🧪', decision: '⚖️', checkin: '📈'};
 let contactTypes = [];
 fetch('/api/meetings/contact-types').then(r => r.json()).then(list => { contactTypes = list; }).catch(() => {});
 
