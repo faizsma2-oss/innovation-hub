@@ -112,6 +112,7 @@ async function proposeOptions(id, feedback) {
 }
 
 function wireResearch(record) {
+  wireContacts(record);   // js/meetings.js
   wireSuppliers(record);
   wireEvaluation(record);
   wirePilot(record);
@@ -355,6 +356,7 @@ function trackHtml(record, name, index, editable) {
   return `<article class="track" data-supplier="${escapeText(name)}" data-index="${index}">
     <div class="track-head"><h4>${escapeText(name)}</h4>
       <ol class="stepper">${steps.map(([label, done]) => `<li class="${done ? 'done' : ''}">${label}</li>`).join('')}</ol></div>
+    ${contactsHtml(record, name)}
 
     <details ${!prep && editable ? 'open' : ''}><summary>1. Prepare the meeting${prep ? ' ✓' : ''}</summary>
       ${prep ? `<p><strong>Goal:</strong> ${escapeText(prep.meeting_goal)}</p>

@@ -442,3 +442,39 @@ form > .primary { margin-top: 22px; }
 .measure-card p { margin: 4px 0 0; }
 .measure-form input, .measure-form select { min-width: 120px; }
 @media (max-width: 800px) { .criterion-row { grid-template-columns: 1fr 1fr; } }
+
+/* ── 17. Meetings, contacts and the Today panel ──────────────────────────── */
+.today .reminders { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.reminder { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 16px; background: var(--surface);
+  box-shadow: var(--shadow); font-size: 15px; }
+.reminder > span:nth-child(2) { flex: 1; }
+.reminder.high { box-shadow: inset 3px 0 0 var(--bad), var(--shadow); }
+.reminder.medium { box-shadow: inset 3px 0 0 var(--warn), var(--shadow); }
+.reminder button { font-size: 13px; padding: 6px 12px; }
+.reminder-icon { font-size: 18px; }
+.meetings-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.meeting-group h5 { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.meeting-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; margin-bottom: 8px; padding: 12px 14px;
+  text-align: left; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); font-size: 14px; }
+.meeting-row:hover { background: var(--surface); transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+#reviewer-nav[data-badge]:not([data-badge=""])::after { content: attr(data-badge); margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: #fff; background: var(--bad); }
+.contacts-box { margin-top: 12px; padding: 10px 14px; border-radius: 16px; background: color-mix(in srgb, var(--accent) 7%, transparent); font-size: 14px; }
+.contacts-box > summary { color: var(--accent); font-weight: 600; }
+.contact-list { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 10px; }
+.contact-list a { color: var(--accent); word-break: break-all; }
+.warning-inline { font-size: 12px; color: var(--warn); }
+.add-contact { margin-top: 10px; background: transparent !important; padding: 0 !important; }
+.add-contact select, .add-contact input { background: var(--surface); }
+a.button { display: inline-flex; align-items: center; padding: 9px 18px; border-radius: 999px; font-size: 15px; text-decoration: none;
+  color: var(--text); background: var(--fill); }
+a.button.primary { color: #fff; }
+a.button:hover { background: var(--fill-strong); }
+.agenda { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
+#meeting-body input, #meeting-body textarea, #meeting-body select { margin-top: 6px; }
+#meeting-body .stepper { margin: 10px 0; }
+.debrief { margin-top: 22px; padding-top: 6px; border-top: 1px solid var(--border); }
+.debrief h5 { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+.actions-table input { font-size: 13px; padding: 6px 8px; }
+.actions-table input[type=checkbox] { width: auto; accent-color: var(--accent); }
+.actions-table .flag { color: var(--warn); font-weight: 600; }

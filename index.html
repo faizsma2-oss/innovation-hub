@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Innovation Hub · Learning demo</title>
-  <link rel="stylesheet" href="styles/theme.css?v=14">
-  <link rel="stylesheet" href="styles/layout.css?v=14">
+  <link rel="stylesheet" href="styles/theme.css?v=16">
+  <link rel="stylesheet" href="styles/layout.css?v=16">
 </head>
 <body>
 <div class="shell">
@@ -47,6 +47,12 @@
 
       <div class="measures" id="measures" aria-label="Success measures"></div>
       <p class="muted measures-note" id="measures-note"></p>
+
+      <div class="section-title"><h2>Today</h2><span id="today-date"></span></div>
+      <div id="today" class="today"></div>
+
+      <div class="section-title"><h2>Meetings</h2><span>Outlook drafts, Teams links and calendar invites. Nothing is sent by the app.</span></div>
+      <div id="meetings-list" class="meetings-list"></div>
 
       <div class="section-title"><h2>Queues</h2></div>
       <div class="queue-tabs" role="tablist" id="queue-tabs"></div>
@@ -115,6 +121,12 @@
 </dialog>
 
 <!-- Request details: different for the employee and the reviewer -->
+<!-- One supplier meeting, from draft invitation to debrief -->
+<dialog id="meeting-dialog" class="wide">
+  <div class="dialog-top"><h2 id="meeting-title">Meeting</h2><button type="button" id="close-meeting" aria-label="Close">×</button></div>
+  <div id="meeting-body"></div>
+</dialog>
+
 <dialog id="detail-dialog" class="wide">
   <div class="dialog-top"><h2 id="detail-title"></h2><button id="close-detail" aria-label="Close details">×</button></div>
   <p id="detail-meta" class="muted"></p>
@@ -123,9 +135,10 @@
   <section id="detail-history"></section>
 </dialog>
 
-<script src="js/app.js?v=14"></script>
-<script src="js/intake.js?v=14"></script>
-<script src="js/review.js?v=14"></script>
-<script src="js/research.js?v=14"></script>
+<script src="js/app.js?v=16"></script>
+<script src="js/intake.js?v=16"></script>
+<script src="js/review.js?v=16"></script>
+<script src="js/research.js?v=16"></script>
+<script src="js/meetings.js?v=16"></script>
 </body>
 </html>

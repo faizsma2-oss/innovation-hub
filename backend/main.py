@@ -16,6 +16,7 @@ from .intake.routes import router as intake_router
 from .intake.brain import get_brain
 from .models import DEMO_USER, Status, SubmissionIn, SubmissionOut
 from .review import screening
+from .meetings.routes import router as meetings_router
 from .research.evaluation_routes import router as evaluation_router
 from .research.pilot_routes import router as pilot_router
 from .research.routes import router as research_router
@@ -110,13 +111,14 @@ app.include_router(review_router)
 app.include_router(research_router)
 app.include_router(evaluation_router)
 app.include_router(pilot_router)
+app.include_router(meetings_router)
 
 
 # 3. Routes. Each one pairs an address with a function.
 @app.get("/api/health")
 def health():
     brain = get_brain()
-    return {"status": "ok", "milestone": "9", "brain": brain.name,
+    return {"status": "ok", "milestone": "10", "brain": brain.name,
             "public_demo": SANDBOXES, "budget": budget.status()}
 
 

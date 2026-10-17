@@ -25,6 +25,7 @@ flowchart LR
 | Screening | Submitted | Routes, scores the priority rubric, recommends | Accept / ask / decline / link, correct the screening | Only clear-cut policy declines are automatic |
 | Solution options | Accepted | Proposes 3–5 approaches with scores, pros and cons | Compare, ask again, **select one with a reason** | The ranking is calculated in code |
 | Supplier research | Research | Searches the web; findings with sources | **Answer the setup questions**, shortlist | A source counts only if it was retrieved; must-haves are pass/fail |
+| **Supplier meetings** | Research → Pilot running | Finds official contacts; agenda and invitation drafts; debriefs notes or a Teams recap into actions and next steps | Send from Outlook, confirm times, attend, paste notes | Nothing is sent by the app; owners and dates only from the notes; Today panel reminders |
 | **Supplier evaluation** | Research | Meeting brief, questions, **draft** email; extracts answers, risks and actions from meeting notes | Send emails, hold meetings, **run due diligence** | **Pilot partner only when every required check passed** |
 | Pilot planning | Pilot planning | Drafts the pilot plan: baseline, success criteria, exit criteria, roles | Agree targets and owners | Targets not in the facts stay "to be agreed" |
 | Pilot run | Pilot planning → Pilot running | — | Agree numeric targets and a named owner, measure the baseline, log data and observations | **Start only with a complete setup and a baseline for every metric** |

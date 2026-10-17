@@ -73,6 +73,44 @@ CREATE TABLE IF NOT EXISTS submission_events (
     created_at    TEXT NOT NULL
 );
 
+-- Meetings with suppliers, across all requests (see backend/meetings/).
+CREATE TABLE IF NOT EXISTS meetings (
+    pk                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    submission_pk      INTEGER NOT NULL REFERENCES submissions(pk),
+    supplier           TEXT NOT NULL,
+    contact            TEXT,
+    title              TEXT NOT NULL,
+    status             TEXT NOT NULL,          -- planned, invite_sent, scheduled, held, cancelled
+    proposed_slots     TEXT,                   -- JSON list of the times offered
+    booking_link       TEXT,                   -- e.g. a Microsoft Bookings page
+    internal_attendees TEXT,
+    start_at           TEXT,                   -- local Dubai time, e.g. 2026-11-03T10:00
+    duration_min       INTEGER,
+    teams_link         TEXT,
+    plan_json          TEXT,                   -- agenda and invitation draft
+    sent_at            TEXT,
+    reply_due          TEXT,                   -- follow up if no reply by this date
+    notes              TEXT,
+    debrief_json       TEXT,
+    cancelled_reason   TEXT,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL
+);
+
+-- Actions agreed in meetings. Owner and due date stay UNASSIGNED / empty unless the notes said so.
+CREATE TABLE IF NOT EXISTS meeting_actions (
+    pk            INTEGER PRIMARY KEY AUTOINCREMENT,
+    meeting_pk    INTEGER NOT NULL REFERENCES meetings(pk),
+    submission_pk INTEGER NOT NULL,
+    action        TEXT NOT NULL,
+    owner         TEXT NOT NULL,
+    due           TEXT,                        -- ISO date, or NULL when no date was agreed
+    due_text      TEXT,                        -- the deadline as written in the notes
+    status        TEXT NOT NULL DEFAULT 'open',
+    created_at    TEXT NOT NULL,
+    done_at       TEXT
+);
+
 -- Small app settings, such as the supplier research answers last used (to pre-fill the next run).
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,

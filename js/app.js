@@ -44,6 +44,7 @@ async function loadSubmissions() {
     get('load-error').hidden = true;
     renderAll();
     renderMeasures(await fetch('/api/metrics').then(reply => reply.json()));
+    if (typeof loadMeetings === 'function') loadMeetings();   // js/meetings.js
   } catch (error) {
     const message = location.protocol === 'file:'
       ? 'This page needs the server. In the terminal run: fastapi dev backend/main.py — then open http://127.0.0.1:8000'

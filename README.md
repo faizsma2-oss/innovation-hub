@@ -1,4 +1,4 @@
-# Innovation Hub — Milestone 9
+# Innovation Hub — Milestone 10
 
 **Live demo: https://innovation-hub-demo.onrender.com.** Each visitor gets a private copy that resets after 24 hours. If the site has been idle, the first load takes about a minute to wake up.
 
@@ -172,7 +172,14 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
     - **revise** starts a new round in Pilot planning, keeping the history
     - **stop** moves it to Stopped
   - Every decision is logged as agreeing with or overriding the recommendation.
-- 127 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Meetings with suppliers** (`backend/meetings/`). The design follows how Microsoft 365 teams already work: Outlook, Teams and Bookings.
+  - **Find contacts:** official business channels only (sales or partnerships email, demo booking, UAE/GCC office, local partner, contact form). Each one is checked against a retrieved source page, personal-looking addresses are rejected, and the **best route** is ranked in code.
+  - **Plan:** an AI agenda (blocking questions first) and an invitation that offers your time slots or a Microsoft Bookings link. **Open in Outlook** fills a new email; a person sends it.
+  - **Track:** a follow-up date 3 UAE working days after sending; then confirm the time and Teams link, and **Add to calendar** downloads an `.ics` invite (Dubai time, with a 15-minute reminder).
+  - **Debrief:** paste the Teams Copilot recap or your notes. You get a summary, decisions, actions (owners and dates only from the notes), suggested next steps, risks and a follow-up email draft. The supplier comparison updates too.
+  - **Today panel:** replies overdue, meetings coming up, meetings held without notes, actions due, overdue or without an owner, and pilots past their end date.
+  - **Not done yet:** a direct Outlook/Teams connection (Microsoft Graph). That needs Khazna IT to register the app, give admin consent and enable transcript access. The Hub already works through standard drafts and `.ics` files in the meantime.
+- 149 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 
