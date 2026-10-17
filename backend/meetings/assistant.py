@@ -31,9 +31,10 @@ CHANNEL_LABELS = {"demo_booking_link": "Book a demo", "sales_email": "Sales emai
                   "partnership_email": "Partnerships email", "regional_office": "Regional office",
                   "local_partner": "Local partner", "contact_form": "Contact form",
                   "general_email": "General email", "phone": "Phone"}
-# Lower is better. A UAE/GCC route beats a global one of the same kind.
+# Lower is better: ways to start a conversation first, a street address (somewhere to visit) last.
+# A UAE/GCC route beats a global one of the same kind.
 CHANNEL_PRIORITY = {"demo_booking_link": 1, "sales_email": 1, "partnership_email": 2, "local_partner": 2,
-                    "regional_office": 3, "contact_form": 4, "general_email": 5, "phone": 6}
+                    "contact_form": 3, "general_email": 4, "phone": 4, "regional_office": 6}
 REGION_BONUS = {"UAE": 0, "GCC": 0.5, "global": 1.0, "unknown": 1.2}
 ROLE_MAILBOXES = re.compile(r"^(sales|info|contact|contactus|partners?|partnerships|enquir(y|ies)|inquir(y|ies)|hello|"
                             r"business|bizdev|mena|uae|dubai|gcc|middleeast|me|emea|marketing|support|demo|team|"
@@ -64,8 +65,11 @@ def check_contacts(raw: list, supplier: dict, retrieved: set[str]) -> list[dict]
                 continue
             if not ROLE_MAILBOXES.match(value.split("@")[0]):
                 continue                                   # looks personal: official channels only
-            if site and domain(value) != site:
-                flags.append("Email domain differs from the supplier's website. Check it's genuine.")
+            # An address the supplier publishes on its own website is official, even on another of its
+            # domains (zoho.com listing sales@zohocorp.com). Flag it only when it came from elsewhere.
+            on_own_site = site and domain(source) == site
+            if site and domain(value) != site and not on_own_site:
+                flags.append("Found on another website, with a different domain from the supplier's. Check it's genuine.")
         elif kind == "phone":
             if not PHONE.match(value):
                 continue

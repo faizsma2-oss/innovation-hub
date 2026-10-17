@@ -44,15 +44,25 @@ def test_only_official_channels_with_a_retrieved_source_are_kept():
 
 
 def test_best_route_prefers_uae_sales_and_flags_odd_domains():
+    directory = "https://business-directory.example/acme"
     raw = [
         {"type": "general_email", "value": "info@acme.example", "region": "UAE", "note": "", "source_url": PAGE},
         {"type": "sales_email", "value": "sales.mena@acme.example", "region": "UAE", "note": "", "source_url": PAGE},
-        {"type": "sales_email", "value": "sales@acme-reseller.example", "region": "global", "note": "", "source_url": PAGE},
+        {"type": "sales_email", "value": "sales@acme-reseller.example", "region": "global", "note": "", "source_url": directory},
     ]
-    kept = check_contacts(raw, SUPPLIER, {PAGE})
+    kept = check_contacts(raw, SUPPLIER, {PAGE, directory})
     assert kept[0]["value"] == "sales.mena@acme.example" and kept[0]["best"]
     odd = next(c for c in kept if c["value"] == "sales@acme-reseller.example")
     assert odd["flags"] and odd["rank"] == 3
+
+
+def test_address_published_on_the_suppliers_own_site_is_official():
+    # Found in the live check: sales@zohocorp.com, listed on zoho.com, was wrongly flagged and buried.
+    page = "https://www.zoho.com/ae/books/contact-support.html"
+    raw = [{"type": "regional_office", "value": "Building 09, Dubai Internet City", "region": "UAE", "note": "", "source_url": page},
+           {"type": "sales_email", "value": "sales@zohocorp.com", "region": "global", "note": "", "source_url": page}]
+    kept = check_contacts(raw, {"name": "Zoho", "website": "https://www.zoho.com"}, {page})
+    assert kept[0]["value"] == "sales@zohocorp.com" and not kept[0]["flags"]   # a way to talk beats a street address
 
 
 def test_find_and_add_contacts_for_a_shortlisted_supplier(client):
