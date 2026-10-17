@@ -72,7 +72,9 @@ def clean_old_sandboxes():
 
 @app.middleware("http")
 async def visitor_sandbox(request, call_next):
-    if not SANDBOXES or request.url.path.startswith(("/js/", "/styles/")):
+    if not SANDBOXES or not request.url.path.startswith("/api/"):
+        # Only data requests need a sandbox. The page, scripts and styles (and Render's port
+        # scan, which requests the page) are answered at once without creating one.
         return await call_next(request)
     visitor = request.cookies.get(COOKIE, "")
     is_new = not re.fullmatch(r"[0-9a-f]{32}", visitor)

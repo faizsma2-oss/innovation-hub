@@ -15,7 +15,7 @@ import re
 
 from .. import db
 from ..intake import rules, search
-from ..intake.brain import LABELS, QUESTIONS, get_brain
+from ..intake.brain import LABELS, MOCK, QUESTIONS, get_brain
 from ..models import INNOVATION_ROUTES, ROUTES, ROUTINE_ROUTES
 
 VERSION = "screening-rules v2"
@@ -214,7 +214,7 @@ def decline(code: str, confidence: str, reason: str, requested: bool, **fill) ->
 
 # ── Running it ───────────────────────────────────────────────────────────────
 
-def screen(conn, submission_id: str, allow_auto: bool = True) -> dict:
+def screen(conn, submission_id: str, allow_auto: bool = True, use_ai: bool = True) -> dict:
     """Route (if not routed yet), brief, prioritise and recommend. Applies a recommendation
     straight away only when it's an automatic policy decline."""
     record = db.get_submission(conn, submission_id)
@@ -233,7 +233,9 @@ def screen(conn, submission_id: str, allow_auto: bool = True) -> dict:
                      " status = ? WHERE pk = ?", (route, reason, route, track, status, pk))
         record = db.get_submission(conn, submission_id)
 
-    brief = record["brief"] or get_brain().write_brief(record, {
+    # Sample records (use_ai=False) get a scripted brief: instant and free, so a new visitor's
+    # sandbox is ready at once and costs nothing.
+    brief = record["brief"] or (get_brain() if use_ai else MOCK).write_brief(record, {
         "unknown": [field for field in QUESTIONS if not record.get(field)],
         "notes": ["Submitted without the intake assistant"],
         "checked": [], "related": [], "previous_attempts": [], "flags": []})
@@ -284,7 +286,7 @@ def screen_unscreened():
         rows = conn.execute("SELECT pk FROM submissions WHERE recommendation_json IS NULL"
                             " OR route IS NULL AND status != 'Linked'").fetchall()
         for row in rows:
-            screen(conn, f"SUB-{row['pk']:04d}", allow_auto=False)
+            screen(conn, f"SUB-{row['pk']:04d}", allow_auto=False, use_ai=False)
 
 
 def full_text(record: dict) -> str:

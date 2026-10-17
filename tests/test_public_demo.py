@@ -131,3 +131,19 @@ def test_health_checks_and_static_files_do_not_create_sandboxes(public):
         pinger.get("/")                                              # a real visit creates exactly one
         pinger.get("/api/submissions")
         assert len(list((public / "sandboxes").glob("*.db"))) == 1
+
+
+def test_new_sandbox_never_calls_claude_even_with_a_key(public, monkeypatch):
+    # Found on Render: preparing each new sandbox asked Claude to summarise the sample records,
+    # so the page took too long to answer and the deploy timed out.
+    from backend import llm
+    monkeypatch.setenv("HUB_BRAIN", "auto")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-real")
+    calls = []
+    monkeypatch.setattr(llm, "call_json", lambda *args, **kwargs: calls.append(1) or (_ for _ in ()).throw(llm.LLMError("no")))
+    with visitor() as newcomer:
+        assert newcomer.get("/").status_code == 200
+        assert not list((public / "sandboxes").glob("*.db"))          # the page alone creates nothing
+        records = newcomer.get("/api/submissions").json()
+        assert len(records) == 3 and all(r["brief"] for r in records)
+    assert calls == []
