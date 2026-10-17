@@ -311,6 +311,19 @@ def reminders():
                 items.append({"kind": "pilot_ended", "severity": "high", "submission_id": f"SUB-{row['pk']:04d}",
                               "text": f"The pilot with {pilot.get('partner')} passed its end date ({end}). Evaluate it.",
                               "due": end})
+        for row in conn.execute("SELECT pk, status, research_json FROM submissions WHERE status IN ('Scaling', 'In operation')"):
+            scale = json.loads(row["research_json"]).get("scale") or {}
+            sid = f"SUB-{row['pk']:04d}"
+            case = scale.get("business_case")
+            if row["status"] == "Scaling" and case and case["status"] == "AWAITING DECISION":
+                items.append({"kind": "decision", "severity": "high", "submission_id": sid,
+                              "text": f"Business case ready for a decision ({case['calc']['verdict'].lower()}).",
+                              "due": case["prepared_at"][:10]})
+            for checkin in scale.get("checkins", []):
+                if not checkin.get("result") and date.fromisoformat(checkin["due"]) <= today:
+                    items.append({"kind": "checkin", "severity": "high", "submission_id": sid,
+                                  "text": f"{checkin['label']} benefits check-in is due: did the improvement hold?",
+                                  "due": checkin["due"]})
     order = {"high": 0, "medium": 1}
     items.sort(key=lambda item: (order[item["severity"]], item.get("due") or "9999"))
     return {"today": today.isoformat(), "items": items}

@@ -5,7 +5,7 @@ let researchCriteria = [];
 fetch('/api/research/criteria').then(reply => reply.json()).then(list => { researchCriteria = list; }).catch(() => {});
 
 function solutionsHtml(record) {
-  if (['Research', 'Pilot planning', 'Pilot running', 'Scaling', 'Stopped'].includes(record.status)) return researchHtml(record);
+  if (['Research', 'Pilot planning', 'Pilot running', 'Scaling', 'Rolling out', 'In operation', 'Stopped'].includes(record.status)) return researchHtml(record);
   if (record.status !== 'Accepted') return '';
   const s = record.solutions;
   if (!s) {
@@ -100,6 +100,7 @@ function researchHtml(record) {
     ${suppliersHtml(record)}
     ${evaluationHtml(record)}
     ${pilotHtml(record)}
+    ${scaleHtml(record)}
   </section>`;
 }
 
@@ -116,6 +117,7 @@ function wireResearch(record) {
   wireSuppliers(record);
   wireEvaluation(record);
   wirePilot(record);
+  wireScale(record);      // js/scale.js
   if (get('propose-button')) get('propose-button').onclick = () => proposeOptions(record.id);
   if (get('ask-again-button')) get('ask-again-button').onclick = () => proposeOptions(record.id, get('feedback-text').value);
   for (const form of document.querySelectorAll('.select-form')) {
@@ -499,7 +501,8 @@ function pilotWorkHtml(record) {
   const evaluation = (pilot.evaluations ?? []).filter(e => e.round === round).at(-1);
   let html = `<div class="pilot-work"><div class="solutions-head"><div><p class="eyebrow">PILOT${round > 1 ? ` · ROUND ${round}` : ''}</p>
     <h3>${{'Pilot planning': 'Agree, measure, then start', 'Pilot running': 'Running: measure, then evaluate',
-      Scaling: 'Decided: scale it up', Stopped: 'Decided: stop'}[record.status]}</h3></div></div>`;
+      Scaling: 'Decided: scale it up', 'Rolling out': 'Decided: scale it up', 'In operation': 'Decided: scale it up',
+      Stopped: 'Decided: stop'}[record.status]}</h3></div></div>`;
 
   // 1. Setup
   if (planning && (!setup || editingSetup)) html += setupFormHtml(pilot);

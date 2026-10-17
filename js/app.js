@@ -45,6 +45,7 @@ async function loadSubmissions() {
     renderAll();
     renderMeasures(await fetch('/api/metrics').then(reply => reply.json()));
     if (typeof loadMeetings === 'function') loadMeetings();   // js/meetings.js
+    if (typeof loadPortfolio === 'function') loadPortfolio(); // js/portfolio.js
   } catch (error) {
     const message = location.protocol === 'file:'
       ? 'This page needs the server. In the terminal run: fastapi dev backend/main.py — then open http://127.0.0.1:8000'
@@ -65,6 +66,9 @@ function renderMeasures(m) {
     [m.missed_opportunities, 'Missed opportunities caught'],
     [m.satisfaction == null ? '–' : `${m.satisfaction} / 5`, `Employee ease rating (${m.satisfaction_responses})`],
     [m.confirmed_resolutions, 'Confirmed resolutions'],
+    [m.in_operation, 'Improvements in operation'],
+    [Object.entries(m.benefits_realised ?? {}).map(([cur, v]) => `${Math.round(v).toLocaleString()} ${cur}`).join(' + ') || '–', 'Benefits realised per year (measured)'],
+    [m.lessons_published, 'Lessons published back to intake'],
   ];
   get('measures').innerHTML = tiles.map(([value, label]) =>
     `<div><strong>${escapeText(value)}</strong><span>${escapeText(label)}</span></div>`).join('');
@@ -83,8 +87,15 @@ function chips(record, forReviewer) {
   if (record.status === 'Research') list.push(['rec-accept', `Research: ${record.research.selected_option.title}`]);
   if (record.status === 'Pilot planning') list.push(['rec-accept', `Pilot with ${record.research.pilot.partner}`]);
   if (record.status === 'Pilot running') list.push(['rec-accept', `Pilot running with ${record.research.pilot.partner}`]);
-  if (record.status === 'Scaling') list.push(['rec-accept', 'Scaling']);
-  if (record.status === 'Stopped') list.push(['rec-decline', 'Stopped after pilot']);
+  if (record.status === 'Scaling') list.push(['rec-accept', record.research?.scale?.business_case?.status === 'AWAITING DECISION'
+    ? 'Business case awaiting decision' : 'Scaling: business case needed']);
+  if (record.status === 'Rolling out') list.push(['rec-accept', 'Rolling out']);
+  if (record.status === 'In operation') {
+    const result = record.research?.scale?.checkins?.filter(c => c.result).at(-1)?.result;
+    list.push(['rec-accept', result ? `In operation · benefit ${result.verdict}` : `In operation · owner ${record.research.scale.rollout.business_owner}`]);
+  }
+  if (record.status === 'Stopped') list.push(['rec-decline', 'Stopped']);
+  if (record.research?.lesson) list.push(['innovation', `Lesson ${record.research.lesson.id} published`]);
   if (forReviewer && record.feasibility && record.innovation_track !== 'none') list.push(['feasibility', FEASIBILITY_LABELS[record.feasibility]]);
   const recommendation = record.recommendation;
   if (forReviewer && recommendation && OPEN_STATUSES.includes(record.status) && !['none', 'route'].includes(recommendation.decision)) {
@@ -117,7 +128,9 @@ const QUEUES = {
   solutions: ['Choose a solution', record => record.status === 'Accepted'],
   research: ['In research', record => record.status === 'Research'],
   pilot: ['Pilots', record => ['Pilot planning', 'Pilot running'].includes(record.status)],
-  outcomes: ['Scaled or stopped', record => ['Scaling', 'Stopped'].includes(record.status)],
+  scaling: ['Scaling and rollout', record => ['Scaling', 'Rolling out'].includes(record.status)],
+  operation: ['In operation', record => record.status === 'In operation'],
+  stopped: ['Stopped', record => record.status === 'Stopped'],
   declined: ['Declined', record => record.status === 'Declined'],
   all: ['All', () => true],
 };

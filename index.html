@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Innovation Hub · Learning demo</title>
-  <link rel="stylesheet" href="styles/theme.css?v=16">
-  <link rel="stylesheet" href="styles/layout.css?v=16">
+  <link rel="stylesheet" href="styles/theme.css?v=17">
+  <link rel="stylesheet" href="styles/layout.css?v=17">
 </head>
 <body>
 <div class="shell">
@@ -50,6 +50,12 @@
 
       <div class="section-title"><h2>Today</h2><span id="today-date"></span></div>
       <div id="today" class="today"></div>
+
+      <div class="section-title"><h2>Portfolio</h2><span>Every opportunity by stage. Click a card to open it.</span></div>
+      <div id="portfolio-board" class="board"></div>
+      <div class="inline-row report-actions"><button type="button" class="primary" id="weekly-button">Prepare this week's report</button>
+        <span class="muted">Facts come from the records; the AI writes only the summary. Nothing is sent.</span></div>
+      <div id="weekly-report"></div>
 
       <div class="section-title"><h2>Meetings</h2><span>Outlook drafts, Teams links and calendar invites. Nothing is sent by the app.</span></div>
       <div id="meetings-list" class="meetings-list"></div>
@@ -135,10 +141,12 @@
   <section id="detail-history"></section>
 </dialog>
 
-<script src="js/app.js?v=16"></script>
-<script src="js/intake.js?v=16"></script>
-<script src="js/review.js?v=16"></script>
-<script src="js/research.js?v=16"></script>
-<script src="js/meetings.js?v=16"></script>
+<script src="js/app.js?v=17"></script>
+<script src="js/intake.js?v=17"></script>
+<script src="js/review.js?v=17"></script>
+<script src="js/research.js?v=17"></script>
+<script src="js/meetings.js?v=17"></script>
+<script src="js/scale.js?v=17"></script>
+<script src="js/portfolio.js?v=17"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# Innovation Hub — Milestone 10
+# Innovation Hub — Milestone 11
 
 **Live demo: https://innovation-hub-demo.onrender.com.** Each visitor gets a private copy that resets after 24 hours. If the site has been idle, the first load takes about a minute to wake up.
 
@@ -79,6 +79,7 @@ Browsers always check for newer scripts and styles (the server sends `Cache-Cont
    - confidence, feasibility, next step and owner
 4. **Correct the screening** (for example, change the alignment score), then confirm a decision. The measures at the top update.
 5. Back in the **Employee view**, open the IT request and click **Request innovation review**. It now appears in **Employee-requested reviews**.
+6. **Innovation team → Portfolio**: every opportunity by stage, with its owner and days in stage. Click **Prepare this week's report** for a management update you can copy into an email.
 
 ## How it fits together
 
@@ -179,7 +180,19 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
   - **Debrief:** paste the Teams Copilot recap or your notes. You get a summary, decisions, actions (owners and dates only from the notes), suggested next steps, risks and a follow-up email draft. The supplier comparison updates too.
   - **Today panel:** replies overdue, meetings coming up, meetings held without notes, actions due, overdue or without an owner, and pilots past their end date.
   - **Not done yet:** a direct Outlook/Teams connection (Microsoft Graph). That needs Khazna IT to register the app, give admin consent and enable transcript access. The Hub already works through standard drafts and `.ics` files in the meantime.
-- 149 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Scale, roll out and hand over** (`backend/scale/`):
+  - **Business case:** costs are typed by people. The benefit is the pilot's **measured** improvement × how often × how many sites × what one unit is worth. Only metrics that actually improved count. Payback, net per year and 3-year net are calculated in code; the AI writes the narrative and can't add figures.
+  - **Management decision:** approve → *Rolling out* with a drafted rollout plan (phases, training, procurement) and handover checklist; reject → *Stopped*.
+  - **Handover gate:** a named business owner and every checklist item done → *In operation*, with benefit check-ins at 3, 6 and 12 months.
+  - **Benefits tracking:** each check-in compares today's numbers with the baseline and the pilot: held (≥ 80% of the improvement), partly held (30–80%) or eroded. Realised value per year shows in the measures.
+- **Close the loop** (`backend/scale/routes.py`, lessons):
+  - A lesson is drafted, edited by a person and **published to the intake catalog**. A solution in operation is offered to the next employee with the same problem as an existing tool; a stopped pilot becomes "previous pilot" context in future briefs.
+  - Employees see what happened to their idea: in use (with the realised benefit), or stopped (with the reason and the lesson).
+- **Portfolio board and weekly report** (`backend/reports/`):
+  - The board shows every opportunity by stage, with owner, approach, partner and days in stage.
+  - The weekly report collects decisions needed, what moved, results, budgets approved, benefits realised, meetings, overdue actions, blockers and AI spend, each line linked to its request. The AI writes only the summary, and **Copy as text** gives an email you send yourself.
+  - Today reminders now include business cases awaiting a decision and benefit check-ins that are due.
+- 167 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 
@@ -240,7 +253,9 @@ Every milestone leaves a working demo. The AI arrives only after the app can sto
 | 6c | **Supplier research** ✅ (live web check pending) | Configurable comparison factors, web search with source checking, pass/fail plus weighted ranking | Setup questions are remembered; custom and suggested factors; checked and ranked suppliers; shortlist. Tested with scripted and fake Claude |
 | 6d | **Supplier evaluation → pilot planning** ✅ | Human-in-the-loop gates, extracting actions from meeting notes, due diligence | Prepare, contact, meeting, checklist, gated pilot partner, pilot plan; tested with scripted and fake Claude |
 | 6e | **Pilot run and evaluation** ✅ | Measuring against a baseline, noise versus real change, inconclusive results, human scale/stop decisions | Setup gate, baseline before start, calculated verdict, four decisions with history; tested |
-| 7 | **Public demo** | Git, hosting, per-visitor sandboxes (see `docs/hosting-plan.md`) | Interviewers can open a link and try the intake chat |
+| 6f | **Supplier meetings** ✅ | Official contacts, drafts not sends, `.ics` invites, debriefs into actions, reminders | Contacts checked against sources; meeting lifecycle; Today panel |
+| 6g | **Scale, hand over, benefits, lessons, portfolio** ✅ | Business cases from measured data, handover gates, benefits realisation, feedback loops, management reporting | Every gate and calculation tested; lessons appear in the intake chat; weekly report lines link to their records |
+| 7 | **Public demo** ✅ | Git, hosting, per-visitor sandboxes (see `docs/hosting-plan.md`) | Interviewers can open a link and try the intake chat |
 | 8 | **Projects + meeting notes → actions** | Turning accepted submissions into projects; workflow 1 of the agent | `meeting-01` eval passes, and actions appear in the project for approval |
 | 9 | **Vendor documents → evidence comparison** | File uploads, evidence labels, prompt-injection defence | Comparison cites a source for every claim and ignores instructions inside documents |
 | 10 | **Weekly report + earned autonomy** | Reporting only from APPROVED records; measuring agent–reviewer agreement | Every report row links to its source. An agreement dashboard decides whether auto-accept can be switched on |

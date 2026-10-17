@@ -1,6 +1,6 @@
 # The innovation lifecycle in the Hub
 
-From an employee's problem to a decision to scale, with a person deciding at every gate. The AI prepares,
+From an employee's problem to a solution in everyday use (and back into intake), with a person deciding at every gate. The AI prepares,
 drafts and compares; plain-code rules check its work; nothing is sent, bought or approved by the AI.
 
 ```mermaid
@@ -17,6 +17,12 @@ flowchart LR
   I -->|extend| H
   I -->|revise| G
   I -->|stop| K[Stopped]
+  J -->|business case approved| L[Rolling out]
+  J -->|rejected| K
+  L -->|owner named + checklist done| M[In operation]
+  M -->|check-ins at 3, 6, 12 months| M
+  M -->|lesson published as a tool| A
+  K -->|lesson published as a previous pilot| A
 ```
 
 | Stage | Status | AI does | People do | Gate (enforced in code) |
@@ -30,6 +36,11 @@ flowchart LR
 | Pilot planning | Pilot planning | Drafts the pilot plan: baseline, success criteria, exit criteria, roles | Agree targets and owners | Targets not in the facts stay "to be agreed" |
 | Pilot run | Pilot planning → Pilot running | — | Agree numeric targets and a named owner, measure the baseline, log data and observations | **Start only with a complete setup and a baseline for every metric** |
 | Pilot evaluation | Pilot running → Scaling / Pilot running / Pilot planning / Stopped | Writes the narrative only | **Decide: scale, extend, revise or stop**, with a reason | **Verdict calculated in code**: too little data = inconclusive; change within normal variation = no clear change |
+| Business case | Scaling | Writes the narrative, assumptions and risks | Enter costs and what one unit is worth; **management approves or rejects** | **Benefit only from metrics the pilot improved; all money calculated in code** |
+| Rollout and handover | Rolling out → In operation | Drafts phases, training, procurement and the handover checklist | Do the checklist, **name the business owner** | **Handover only with a named owner and every checklist item done** |
+| Benefits tracking | In operation | — | Log today's numbers at 3, 6 and 12 months | Held ≥ 80% of the pilot's improvement, partly held 30–80%, eroded below |
+| Lessons learned | In operation / Stopped | Drafts the lesson and keyword phrases | Edit and **publish** | Generic keywords are rejected; published lessons are checked by the intake chat for every new request |
+| Portfolio and weekly report | all | Writes the report summary only | Prepare, check and send the report | Every line comes from the records and links to its request; a summary with figures not in the facts is replaced |
 
 ## Supplier evaluation in detail
 1. **Prepare.**

@@ -199,10 +199,21 @@ function employeePanel(record) {
     return `<div class="rec rec-accept"><p><strong>A pilot is running</strong> with ${escapeText(record.research.pilot.partner)}. Thank you for raising this.</p></div>`;
   }
   if (record.status === 'Scaling') {
-    return `<div class="rec rec-accept"><p><strong>The pilot worked and is being scaled up.</strong> Your request led to a real improvement. Thank you.</p></div>`;
+    return `<div class="rec rec-accept"><p><strong>The pilot worked.</strong> A business case for using it more widely is with management. Thank you.</p></div>`;
+  }
+  if (record.status === 'Rolling out') {
+    return `<div class="rec rec-accept"><p><strong>Approved and rolling out</strong> beyond the pilot. Your request is becoming the normal way of working. Thank you.</p></div>`;
+  }
+  if (record.status === 'In operation') {
+    const scale = record.research.scale;
+    const result = scale.checkins?.filter(c => c.result).at(-1)?.result;
+    return `<div class="rec rec-accept"><p><strong>Your idea is now in everyday use.</strong> ${escapeText(scale.rollout.business_owner)} owns it in operations.
+      ${result ? `At the latest check-in the improvement had ${escapeText(result.verdict)}: about ${Math.round(result.realised_annual_value).toLocaleString()} ${escapeText(result.currency)} a year.` : 'The benefit is checked at 3, 6 and 12 months.'}
+      Thank you for raising it.</p>${record.research.lesson ? '<p class="muted">Colleagues with the same problem are now pointed to it when they ask for help.</p>' : ''}</div>`;
   }
   if (record.status === 'Stopped') {
-    return `<div class="rec rec-decline"><p><strong>The pilot was stopped.</strong> ${escapeText(record.research.pilot.decisions?.at(-1)?.reason ?? '')} The lessons are recorded for future ideas.</p></div>`;
+    const why = record.research.scale?.business_case?.decision?.reason ?? record.research.pilot?.decisions?.at(-1)?.reason ?? '';
+    return `<div class="rec rec-decline"><p><strong>This was stopped.</strong> ${escapeText(why)} What was learned is recorded, so future ideas on this problem start from it, not from zero. Thank you for raising it.</p></div>`;
   }
   if (record.status === 'Pilot planning') {
     return `<div class="rec rec-accept"><p><strong>A pilot is being planned</strong> with ${escapeText(record.research.pilot.partner)}. The innovation team will keep you updated.</p></div>`;

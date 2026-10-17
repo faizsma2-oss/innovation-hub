@@ -111,6 +111,15 @@ CREATE TABLE IF NOT EXISTS meeting_actions (
     done_at       TEXT
 );
 
+-- Weekly management reports (the collected facts and the summary, as JSON).
+CREATE TABLE IF NOT EXISTS reports (
+    pk           INTEGER PRIMARY KEY AUTOINCREMENT,
+    period_start TEXT NOT NULL,
+    period_end   TEXT NOT NULL,
+    report_json  TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
+
 -- Small app settings, such as the supplier research answers last used (to pre-fill the next run).
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,

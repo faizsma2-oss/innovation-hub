@@ -285,10 +285,24 @@ def metrics():
             "pilots_running": one("SELECT COUNT(*) FROM submissions WHERE status = 'Pilot running'"),
             "pilots_scaled": one("SELECT COUNT(*) FROM submissions WHERE status = 'Scaling'"),
             "pilots_stopped": one("SELECT COUNT(*) FROM submissions WHERE status = 'Stopped'"),
+            "in_operation": one("SELECT COUNT(*) FROM submissions WHERE status = 'In operation'"),
+            "lessons_published": one("SELECT COUNT(*) FROM solutions WHERE id LIKE 'LES-%'"),
+            "benefits_realised": realised_benefits(conn),
             "employee_requested_open": one(
                 "SELECT COUNT(*) FROM submissions WHERE innovation_track = 'employee_requested' AND status IN"
                 " ('Submitted', 'Routed', 'Under review', 'Needs clarification')"),
         }
+
+
+def realised_benefits(conn) -> dict:
+    """Latest benefits check-in per solution in operation, added up per currency."""
+    totals = {}
+    for (raw,) in conn.execute("SELECT research_json FROM submissions WHERE status = 'In operation'"):
+        checkins = [c for c in (json.loads(raw).get("scale") or {}).get("checkins", []) if c.get("result")]
+        if checkins:
+            result = checkins[-1]["result"]
+            totals[result["currency"]] = round(totals.get(result["currency"], 0) + result["realised_annual_value"], 2)
+    return totals
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

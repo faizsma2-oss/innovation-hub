@@ -10,7 +10,7 @@ DEPARTMENTS = list(get_args(Department))
 
 Status = Literal["Submitted", "Routed", "Linked", "Needs clarification", "Under review",
                  "Accepted", "Declined", "Resolved", "Research", "Pilot planning",
-                 "Pilot running", "Scaling", "Stopped"]
+                 "Pilot running", "Scaling", "Rolling out", "In operation", "Stopped"]
 OPEN_STATUSES = {"Submitted", "Routed", "Needs clarification", "Under review"}
 
 # Where a request goes first. Urgency and innovation potential are separate decisions:

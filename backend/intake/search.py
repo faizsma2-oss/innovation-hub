@@ -43,7 +43,9 @@ def find_similar_submission(conn, text: str, exclude_pk: int | None = None) -> d
     """Return the open submission that shares the most meaningful words with the text."""
     wanted = tokens(text)
     best, best_overlap = None, 0
-    for row in conn.execute("SELECT * FROM submissions WHERE status != 'Declined' AND pk != ?", (exclude_pk or 0,)):
+    # Closed or finished work isn't "being reviewed": it reaches new requests through its published lesson.
+    for row in conn.execute("SELECT * FROM submissions WHERE status NOT IN ('Declined', 'Stopped', 'In operation')"
+                            " AND pk != ?", (exclude_pk or 0,)):
         existing = tokens(f"{row['title']} {row['description']}")
         overlap = len(wanted & existing)
         # At least 3 shared words, covering at least 30% of the existing request.

@@ -478,3 +478,34 @@ a.button:hover { background: var(--fill-strong); }
 .actions-table input { font-size: 13px; padding: 6px 8px; }
 .actions-table input[type=checkbox] { width: auto; accent-color: var(--accent); }
 .actions-table .flag { color: var(--warn); font-weight: 600; }
+
+/* ── 18. Scaling, portfolio board and the weekly report ──────────────────── */
+.scale-work { margin-top: 28px; padding-top: 8px; border-top: 1px solid var(--border); }
+.scale-work h4 { margin-top: 22px; }
+.case-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0 16px; }
+.case-figures div { padding: 14px 16px; border-radius: 16px; background: var(--fill); }
+.case-figures strong { display: block; font-size: 20px; letter-spacing: -0.02em; }
+.case-figures span { font-size: 12px; color: var(--muted); }
+.cost-row input { flex: 1; }
+.benefit-row input { width: 100%; min-width: 70px; }
+.checklist { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; font-size: 15px; }
+.checklist input, .checkin-form input[type=number] { width: auto; accent-color: var(--accent); }
+.checkin-form { display: grid; gap: 6px; margin-top: 8px; font-size: 13px; }
+.checkin-form input[type=number] { width: 100%; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.stage { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--radius-large); background: var(--fill); min-height: 120px; }
+.stage h5 { display: flex; justify-content: space-between; margin: 0 4px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); }
+.stage h5 span { color: var(--text); }
+.stage-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; padding: 10px 12px; text-align: left;
+  border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); font-size: 13px; }
+.stage-card strong { font-size: 14px; line-height: 1.3; }
+.stage-card:hover { background: var(--surface); transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.stage-card .flag { color: var(--warn); font-weight: 600; }
+.report-actions { margin-top: 16px; }
+.report { margin-top: 16px; padding: 22px 24px; border-radius: var(--radius-large); background: var(--surface); box-shadow: var(--shadow); }
+.report-summary { font-size: 17px; line-height: 1.5; }
+.report .plan-grid li { margin-bottom: 4px; }
+@media (max-width: 800px) { .board { grid-auto-columns: minmax(180px, 80%); } }
+#case-decision .inline-row label { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+#case-decision input[type=radio] { width: auto; accent-color: var(--accent); }
