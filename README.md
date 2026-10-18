@@ -211,7 +211,8 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
 - **Tools Khazna already licenses** (`backend/research/licensed.py`): the team keeps a list (assumed or confirmed by IT). Every set of solution options includes one built on those tools; the code removes tool names that aren't on the list and adds the option itself if the AI leaves it out, without changing how options are ranked.
 - **Import pilot measurements from Excel or CSV** (`backend/research/pilot_import.py`): one row per reading or one column per metric; phase from a Phase column or the pilot's start date; day-first dates; a preview lists every row it can't use (bad date, not a number, unknown metric, duplicate) and nothing is saved until a person confirms. Plain code, no AI.
 - **Business case scenarios** (`backend/scale/rules.py`): low (50% of the pilot's saving holds, costs +20%), expected (as calculated) and high (120%), adjustable per case, plus a **break-even**: the smallest share of the saving that still pays back within three years. All calculated in code.
-- 196 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Better matching of existing tools, lessons and similar requests** (`backend/intake/search.py`): SQLite full-text search with word stems, so rewordings match ("permits to work" finds "permit-to-work"), and similar requests are weighted by how rare the shared words are. A labelled set of 22 cases in `tests/test_search.py` went from 15/22 to 22/22.
+- 219 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 

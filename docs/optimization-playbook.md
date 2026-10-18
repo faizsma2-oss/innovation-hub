@@ -74,7 +74,7 @@ I = impact, C = confidence, E = effort.
 | 5 Solution options | ✅ **Done.** Always include an option built on tools Khazna **already licenses** (Power Automate, Power BI, SharePoint lists, Forms) before suggesting new software | 2 Claude + 1 code check | 5 | 4 | 1 | **20** |
 | 15 Pilot | ✅ **Done.** **Import measurements from Excel or CSV** instead of typing each value | 1 code | 3 | 5 | 1 | **15** |
 | 17 Business case | ✅ **Done.** **Low / expected / high scenarios** (e.g. 50%, 100%, 120% of the pilot saving) so management sees the risk | 1 code | 3 | 5 | 1 | **15** |
-| 2 Checks | **Better matching** of duplicates and lessons (SQLite full-text search instead of exact keywords) | 1 code | 3 | 4 | 1 | **12** |
+| 2 Checks | ✅ **Done** (labelled set: tools 10/16 → 16/16, similar requests 5/6 → 6/6). **Better matching** of duplicates and lessons (SQLite full-text search instead of exact keywords) | 1 code | 3 | 4 | 1 | **12** |
 | 23 Copilot | New read-only questions: **"what's overdue?"** and **"what needs my decision?"** | 5 Copilot + 1 code | 3 | 4 | 1 | **12** |
 | 22 Reports | **Prepare the weekly report automatically** every Monday morning (UAE week) | 1 code (schedule) | 2 | 5 | 1 | **10** |
 | 21 Lessons | A **lessons library** page, searchable, for the team and employees | 1 code | 2 | 5 | 1 | **10** |
