@@ -15,12 +15,12 @@ from datetime import datetime
 
 from typing import Literal
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from .. import db
 from ..m365.client import M365Error, get_client, mode
-from . import notes_facts
+from . import documents, notes_facts
 from ..meetings import calendar, replies as reply_reader
 from ..research.routes import log_run
 from ..review.routes import DEMO_REVIEWER
@@ -113,10 +113,55 @@ def decide_fact(note_id: int, body: FactIn):
             raise HTTPException(409, f"Already {suggestion['status'].lower()}")
         company = conn.execute("SELECT * FROM companies WHERE pk = ?", (note["company_pk"],)).fetchone()
         if body.action == "apply":
-            apply_fact(conn, body.submission_id, company["name"], suggestion, note)
+            apply_fact(conn, body.submission_id, company["name"], suggestion, "team note",
+                       f"Team note, {note['created_at'][:10]}", {"note_id": note["pk"]})
         suggestion |= {"status": "APPLIED" if body.action == "apply" else "DISMISSED", "decided_by": DEMO_REVIEWER,
                        "decided_at": db.now()}
         conn.execute("UPDATE company_notes SET facts_json = ? WHERE pk = ?", (json.dumps(facts), note_id))
+        return detail(conn, company)
+
+
+@router.post("/api/companies/{company_id}/documents", status_code=201)
+async def upload_document(company_id: str, file: UploadFile = File(...)):
+    """Read a supplier document and suggest evidence. Only the text is kept; the file isn't stored."""
+    data = await file.read(documents.MAX_BYTES + 1)
+    try:
+        read = documents.read_document(file.filename, data)
+    except documents.DocumentProblem as problem:
+        raise HTTPException(422, str(problem))
+    with db.connect() as conn:
+        company = company_row(conn, company_id)
+        if conn.execute("SELECT 1 FROM company_documents WHERE company_pk = ? AND sha256 = ?",
+                        (company["pk"], documents.fingerprint(data))).fetchone():
+            raise HTTPException(409, "This document is already on the company page")
+        facts = suggest_facts(conn, company["name"], read["pages"], documents.suggest)
+        conn.execute("INSERT INTO company_documents (company_pk, filename, size, sha256, kind, pages_json, facts_json,"
+                     " uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                     (company["pk"], (file.filename or "document")[:120], len(data), documents.fingerprint(data),
+                      read["kind"], json.dumps(read["pages"]), json.dumps(facts) if facts else None, DEMO_REVIEWER, db.now()))
+        return detail(conn, company)
+
+
+@router.post("/api/documents/{document_id}/facts")
+def decide_document_fact(document_id: int, body: FactIn):
+    with db.connect() as conn:
+        document = conn.execute("SELECT * FROM company_documents WHERE pk = ?", (document_id,)).fetchone()
+        if document is None:
+            raise HTTPException(404, "Document not found")
+        facts = json.loads(document["facts_json"] or "{}")
+        suggestion = next((s for s in (facts.get(body.submission_id) or {}).get("suggestions", [])
+                           if s["factor_key"] == body.factor_key), None)
+        if suggestion is None:
+            raise HTTPException(404, "No such suggestion for that request")
+        if suggestion["status"] != "SUGGESTED":
+            raise HTTPException(409, f"Already {suggestion['status'].lower()}")
+        company = conn.execute("SELECT * FROM companies WHERE pk = ?", (document["company_pk"],)).fetchone()
+        if body.action == "apply":
+            apply_fact(conn, body.submission_id, company["name"], suggestion, "supplier document",
+                       f"{document['filename']}, p. {suggestion['page']}", {"document_id": document["pk"]})
+        suggestion |= {"status": "APPLIED" if body.action == "apply" else "DISMISSED", "decided_by": DEMO_REVIEWER,
+                       "decided_at": db.now()}
+        conn.execute("UPDATE company_documents SET facts_json = ? WHERE pk = ?", (json.dumps(facts), document_id))
         return detail(conn, company)
 
 
@@ -130,20 +175,22 @@ def comparisons_with(conn, name: str) -> list[tuple[str, dict]]:
     return found
 
 
-def suggest_facts(conn, name: str, text: str) -> dict:
+def suggest_facts(conn, name: str, text, suggester=None) -> dict:
+    """Suggested evidence for every comparison in research that includes this company."""
+    suggester = suggester or notes_facts.suggest
     result = {}
     for sid, run in comparisons_with(conn, name):
         meter = []
-        suggested = notes_facts.suggest(text, run["setup"]["factors"], meter)
+        suggested = suggester(text, run["setup"]["factors"], meter)
         if meter:
             reader = type("Reader", (), {"name": suggested["generated_by"].split()[0], "version": notes_facts.VERSION_CLAUDE})
             log_run(conn, "note_facts", sid, reader, meter, {"suggestions": len(suggested["suggestions"])})
-        if suggested["suggestions"]:
+        if suggested["suggestions"] or suggested.get("steering"):
             result[sid] = suggested
     return result
 
 
-def apply_fact(conn, submission_id: str, name: str, suggestion: dict, note):
+def apply_fact(conn, submission_id: str, name: str, suggestion: dict, evidence: str, source: str, ref: dict):
     from ..research import suppliers as supplier_rules
     row = conn.execute("SELECT status, research_json FROM submissions WHERE pk = ?", (db.parse_pk(submission_id),)).fetchone()
     if row is None or row["status"] != "Research":
@@ -155,13 +202,13 @@ def apply_fact(conn, submission_id: str, name: str, suggestion: dict, note):
         raise HTTPException(409, "The comparison no longer has that supplier or factor")
     previous = supplier["findings"][suggestion["factor_key"]]
     supplier["findings"][suggestion["factor_key"]] = {
-        "rating": suggestion["rating"], "finding": suggestion["finding"], "evidence": "team note",
-        "sources": [f"Team note, {note['created_at'][:10]}"], "must_have_met": suggestion["must_have_met"],
-        "note_id": note["pk"], "previous": {k: previous.get(k) for k in ("rating", "finding", "evidence", "sources", "must_have_met")}}
+        "rating": suggestion["rating"], "finding": suggestion["finding"], "evidence": evidence,
+        "sources": [source], "must_have_met": suggestion["must_have_met"], **ref,
+        "previous": {k: previous.get(k) for k in ("rating", "finding", "evidence", "sources", "must_have_met")}}
     supplier_rules.rank(run["suppliers"], run["setup"])
     conn.execute("UPDATE submissions SET research_json = ? WHERE pk = ?", (json.dumps(research), db.parse_pk(submission_id)))
-    db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "note_fact_applied", None, None,
-                 f"{name}: {suggestion['factor']} from a team note: {suggestion['finding']}")
+    db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "evidence_applied", None, None,
+                 f"{name}: {suggestion['factor']} from {source}: {suggestion['finding']}")
 
 
 # ── Email: draft → a person approves → sent from their Outlook ───────────────
@@ -587,7 +634,11 @@ def detail(conn, company) -> dict:
                    for e in emails]
                 + [{"at": m["start_at"] or "", "kind": "meeting", "text": f"Meeting {m['status']}: {m['title']}"} for m in meetings])
     timeline.sort(key=lambda item: item["at"] or "", reverse=True)
-    return base | {"contacts": contacts_for(conn, company["name"]), "emails": emails, "meetings": meetings,
+    docs = [{"id": d["pk"], "filename": d["filename"], "size": d["size"], "kind": d["kind"],
+             "pages": len(json.loads(d["pages_json"])), "uploaded_by": d["uploaded_by"], "created_at": d["created_at"],
+             "facts": with_current(conn, company["name"], json.loads(d["facts_json"] or "{}"))}
+            for d in conn.execute("SELECT * FROM company_documents WHERE company_pk = ? ORDER BY pk DESC", (company["pk"],))]
+    return base | {"documents": docs, "contacts": contacts_for(conn, company["name"]), "emails": emails, "meetings": meetings,
                    "notes": notes, "actions": open_actions(conn, company["name"]), "open_actions": len(open_actions(conn, company["name"])),
                    "facts": facts_for(conn, company["name"]), "timeline": timeline, "tags": TAGS,
                    "m365": {"mode": mode()}}

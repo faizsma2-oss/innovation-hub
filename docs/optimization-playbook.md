@@ -84,7 +84,7 @@ I = impact, C = confidence, E = effort.
 | 13 Notes | ✅ **Done.** Turn notes into **structured facts** (price, certificates, hosting) that update the supplier comparison | 2 Claude | 3 | 3 | 2 | 4.5 |
 | 3 Routing | ✅ **Done.** Suggest **rule changes** from the team's routing corrections | 1 code + 6 person | 3 | 3 | 2 | 4.5 |
 | 1 Intake | ✅ **Done.** **Arabic and voice** input for employees | 2 Claude | 4 | 3 | 3 | 4 |
-| 14 Evaluation | **Upload documents** (quotes, security certificates) and extract evidence with sources | 2 Claude | 4 | 3 | 4 | 3 |
+| 14 Evaluation | ✅ **Done.** **Upload documents** (quotes, security certificates) and extract evidence with sources | 2 Claude | 4 | 3 | 4 | 3 |
 
 **Later, with Khazna IT** (needs the Microsoft 365 tenant, consent or licences):
 

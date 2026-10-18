@@ -87,6 +87,16 @@ function renderCompany(c) {
       <span class="muted"> · ${escapeText(STATUS_LABELS[m.status] ?? m.status)}${m.start_at ? ` · ${escapeText(when(m.start_at))}` : ''}${m.booked_in_outlook ? ' · in Outlook' : ''}</span>
       ${m.summary ? `<br><span class="muted">${escapeText(m.summary)}</span>` : ''}</li>`).join('')}</ul>` : '<p class="muted">No meetings yet. Plan one from the request, under this supplier.</p>'}
 
+    <h4>Documents</h4>
+    <p class="muted">Quotes, certificates, hosting statements, datasheets (PDF, Word or text, up to 5 MB). Only the text is kept.
+      Evidence is suggested with the exact quote and page; nothing reaches the comparison until you apply it.</p>
+    <div class="inline-row"><input type="file" id="co-document" accept=".pdf,.docx,.txt" aria-label="Supplier document">
+      <span class="muted" id="co-document-status"></span></div>
+    ${c.documents.length ? `<ul class="notes-list">${c.documents.map(d => `<li>
+      <span class="chip">${escapeText(d.kind.toUpperCase())}</span> <strong>${escapeText(d.filename)}</strong>
+      <span class="muted">${d.pages} ${d.pages === 1 ? 'page' : 'pages'} · ${Math.round(d.size / 1024)} KB · ${escapeText(d.created_at.slice(0, 10))}</span>
+      ${documentFactsHtml(d)}</li>`).join('')}</ul>` : ''}
+
     <h4>Notes</h4>
     <form id="co-note" class="supplier-form">
       <div class="inline-row"><label>Topic <select id="co-tag">${c.tags.map(t => `<option>${escapeText(t)}</option>`).join('')}</select></label>
@@ -106,6 +116,25 @@ function renderCompany(c) {
     <ul class="timeline">${c.timeline.map(t => `<li><span class="muted">${escapeText((t.at ?? '').slice(0, 10))}</span> ${escapeText(t.text)}</li>`).join('') || '<li class="muted">Nothing yet</li>'}</ul>
     <p id="company-error" class="error-text" role="alert"></p>`;
   wireCompany(c);
+}
+
+// Evidence a document suggests, with its quote and page; plus any sentences that try to steer an AI reader.
+function documentFactsHtml(d) {
+  const entries = Object.entries(d.facts ?? {});
+  if (!entries.length) return '<p class="muted">No comparison in research includes this supplier, or nothing matched its factors.</p>';
+  const must = {yes: 'must-have met', no: 'must-have NOT met', unknown: ''};
+  return entries.map(([sid, f]) => `<div class="note-facts"><p class="muted">For the supplier comparison in ${escapeText(sid)}:</p>
+    ${(f.steering ?? []).length ? `<p class="warning">This document contains text aimed at an AI reader; it was not used as evidence:
+      ${escapeText(f.steering.join(' '))}</p>` : ''}
+    ${f.suggestions.map(s => `<div class="note-fact">
+      <p><strong>${escapeText(s.factor)}</strong>: ${escapeText(s.finding)}${s.rating ? ` · ${'●'.repeat(s.rating)}` : ''}
+        ${must[s.must_have_met] ? ` · <span class="${s.must_have_met === 'no' ? 'flag' : ''}">${must[s.must_have_met]}</span>` : ''}</p>
+      <p class="muted">“${escapeText(s.quote)}” · page ${s.page}</p>
+      <p class="muted">Comparison says now: ${escapeText(s.now ?? 'nothing')}</p>
+      ${s.status === 'SUGGESTED' ? `<div class="inline-row"><button type="button" class="primary" data-doc-fact="apply" data-doc="${d.id}" data-sid="${escapeText(sid)}" data-key="${escapeText(s.factor_key)}">Apply to comparison</button>
+        <button type="button" data-doc-fact="dismiss" data-doc="${d.id}" data-sid="${escapeText(sid)}" data-key="${escapeText(s.factor_key)}">Dismiss</button></div>`
+        : `<span class="status">${escapeText(s.status)}</span>`}</div>`).join('')}
+    <p class="muted">Suggested by ${escapeText(f.generated_by)}; every quote was checked against the page it names.</p></div>`).join('');
 }
 
 // Facts a note suggests for each supplier comparison it's relevant to. Apply changes the comparison; nothing else does.
@@ -151,6 +180,21 @@ function wireCompany(c) {
   if (get('co-replies')) get('co-replies').onclick = async () => {
     const result = await send(`/api/companies/${c.id}/check-replies`, {}, get('co-replies'));
     if (result) get('co-replies-status').textContent = result.new_replies ? `${result.new_replies} new` : 'No new replies';
+  };
+  for (const button of document.querySelectorAll('[data-doc-fact]')) {
+    button.onclick = () => send(`/api/documents/${button.dataset.doc}/facts`,
+      {submission_id: button.dataset.sid, factor_key: button.dataset.key, action: button.dataset.docFact}, button);
+  }
+  get('co-document').onchange = async event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    get('co-document-status').textContent = 'Reading the document…';
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch(`/api/companies/${c.id}/documents`, {method: 'POST', body: form});
+    const reply = await response.json();
+    if (!response.ok) { get('co-document-status').textContent = reply.detail; return; }
+    renderCompany(reply); loadCompanies(); loadSubmissions();
   };
   for (const button of document.querySelectorAll('[data-fact]')) {
     button.onclick = () => send(`/api/notes/${button.dataset.note}/facts`,

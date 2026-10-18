@@ -159,6 +159,21 @@ CREATE TABLE IF NOT EXISTS emails (
     at              TEXT NOT NULL
 );
 
+-- Supplier documents: only the text (page by page) is kept, never the file, plus suggested evidence.
+CREATE TABLE IF NOT EXISTS company_documents (
+    pk          INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_pk  INTEGER NOT NULL REFERENCES companies(pk),
+    filename    TEXT NOT NULL,
+    size        INTEGER NOT NULL,
+    sha256      TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    pages_json  TEXT NOT NULL,
+    facts_json  TEXT,
+    uploaded_by TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    UNIQUE (company_pk, sha256)
+);
+
 -- The pretend mailbox and calendar used when HUB_M365=demo.
 CREATE TABLE IF NOT EXISTS m365_demo_items (
     pk         INTEGER PRIMARY KEY AUTOINCREMENT,
