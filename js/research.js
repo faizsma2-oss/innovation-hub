@@ -192,7 +192,7 @@ function wireResearch(record) {
 // web; the server keeps only findings with a retrieved source and calculates the ranking.
 
 const IMPORTANCE_LABELS = {must: 'Must-have (pass/fail)', high: 'High', medium: 'Medium', low: 'Low'};
-const EVIDENCE_LABELS = {'supplier-stated': 'Supplier says', independent: 'Independent source',
+const EVIDENCE_LABELS = {'supplier-stated': 'Supplier says', independent: 'Independent source', 'team note': 'Team note',
   'not found': 'Not found', 'not verified': 'Not verified'};
 let supplierSetup = null;   // {library, geography, cost_policy, defaults} from the server
 let setupFactors = [];      // the factor rows currently on screen

@@ -95,7 +95,7 @@ function renderCompany(c) {
       <button type="submit">Add note</button></form>
     ${c.notes.length ? `<ul class="notes-list">${c.notes.map(n => `<li><span class="chip chip-${TAG_STYLE[n.tag] ?? ''}">${escapeText(n.tag)}</span>
       <span class="muted">${escapeText(n.stage)}${n.submission_id ? ` · ${escapeText(n.submission_id)}` : ''} · ${escapeText(n.created_at.slice(0, 10))}</span>
-      <p>${escapeText(n.text)}</p></li>`).join('')}</ul>` : ''}
+      <p>${escapeText(n.text)}</p>${noteFactsHtml(n)}</li>`).join('')}</ul>` : ''}
 
     <details class="copilot-box"><summary>What Copilot sees about ${escapeText(c.name)}</summary>
       <p class="muted">The Innovation Hub Copilot agent reads exactly this, through <code>/api/copilot/companies/${escapeText(c.id)}</code>.
@@ -106,6 +106,22 @@ function renderCompany(c) {
     <ul class="timeline">${c.timeline.map(t => `<li><span class="muted">${escapeText((t.at ?? '').slice(0, 10))}</span> ${escapeText(t.text)}</li>`).join('') || '<li class="muted">Nothing yet</li>'}</ul>
     <p id="company-error" class="error-text" role="alert"></p>`;
   wireCompany(c);
+}
+
+// Facts a note suggests for each supplier comparison it's relevant to. Apply changes the comparison; nothing else does.
+function noteFactsHtml(n) {
+  const entries = Object.entries(n.facts ?? {});
+  if (!entries.length) return '';
+  const must = {yes: 'must-have met', no: 'must-have NOT met', unknown: ''};
+  return entries.map(([sid, f]) => `<div class="note-facts"><p class="muted">For the supplier comparison in ${escapeText(sid)}:</p>
+    ${f.suggestions.map(s => `<div class="note-fact">
+      <p><strong>${escapeText(s.factor)}</strong>: ${escapeText(s.finding)}${s.rating ? ` · ${'●'.repeat(s.rating)}` : ''}
+        ${must[s.must_have_met] ? ` · <span class="${s.must_have_met === 'no' ? 'flag' : ''}">${must[s.must_have_met]}</span>` : ''}</p>
+      <p class="muted">Comparison says now: ${escapeText(s.now ?? 'nothing')}</p>
+      ${s.status === 'SUGGESTED' ? `<div class="inline-row"><button type="button" class="primary" data-fact="apply" data-note="${n.pk}" data-sid="${escapeText(sid)}" data-key="${escapeText(s.factor_key)}">Apply to comparison</button>
+        <button type="button" data-fact="dismiss" data-note="${n.pk}" data-sid="${escapeText(sid)}" data-key="${escapeText(s.factor_key)}">Dismiss</button></div>`
+        : `<span class="status">${escapeText(s.status)}</span>`}</div>`).join('')}
+    <p class="muted">Suggested by ${escapeText(f.generated_by)} from the note's own words.</p></div>`).join('');
 }
 
 function wireCompany(c) {
@@ -136,6 +152,10 @@ function wireCompany(c) {
     const result = await send(`/api/companies/${c.id}/check-replies`, {}, get('co-replies'));
     if (result) get('co-replies-status').textContent = result.new_replies ? `${result.new_replies} new` : 'No new replies';
   };
+  for (const button of document.querySelectorAll('[data-fact]')) {
+    button.onclick = () => send(`/api/notes/${button.dataset.note}/facts`,
+      {submission_id: button.dataset.sid, factor_key: button.dataset.key, action: button.dataset.fact}, button);
+  }
   get('co-note').onsubmit = event => {
     event.preventDefault();
     send(`/api/companies/${c.id}/notes`, {text: get('co-note-text').value, tag: get('co-tag').value,

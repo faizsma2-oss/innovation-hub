@@ -600,3 +600,10 @@ a.button:hover { background: var(--fill-strong); }
 .autonomy-figure strong { font-size: 30px; letter-spacing: -0.03em; }
 .autonomy-figure span { font-size: 13px; color: var(--muted); }
 .autonomy-card ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* ── 27. Facts suggested from notes ──────────────────────────────────────── */
+.note-facts { margin-top: 8px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.note-fact { padding: 6px 0; border-top: 1px solid var(--border); }
+.note-fact:first-of-type { border-top: 0; }
+.note-fact p { margin: 2px 0; }
+.note-facts .flag { color: var(--warn); font-weight: 600; }

@@ -13,11 +13,14 @@ import json
 import os
 from datetime import datetime
 
+from typing import Literal
+
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .. import db
 from ..m365.client import M365Error, get_client, mode
+from . import notes_facts
 from ..meetings import calendar, replies as reply_reader
 from ..research.routes import log_run
 from ..review.routes import DEMO_REVIEWER
@@ -80,11 +83,85 @@ def add_note(company_id: str, body: NoteIn):
         if body.submission_id and body.submission_id not in {r["id"] for r in links}:
             raise HTTPException(422, "That request doesn't involve this company")
         link = next((r for r in links if r["id"] == body.submission_id), None) or (links[0] if links else None)
-        conn.execute("INSERT INTO company_notes (company_pk, submission_pk, stage, tag, text, author, created_at)"
-                     " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        facts = suggest_facts(conn, company["name"], body.text.strip())
+        conn.execute("INSERT INTO company_notes (company_pk, submission_pk, stage, tag, text, author, created_at, facts_json)"
+                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                      (company["pk"], db.parse_pk(link["id"]) if link else None, link["stage"] if link else "Shortlisted",
-                      body.tag, body.text.strip(), DEMO_REVIEWER, db.now()))
+                      body.tag, body.text.strip(), DEMO_REVIEWER, db.now(), json.dumps(facts) if facts else None))
         return detail(conn, company)
+
+
+class FactIn(BaseModel):
+    submission_id: str
+    factor_key: str
+    action: Literal["apply", "dismiss"]
+
+
+@router.post("/api/notes/{note_id}/facts")
+def decide_fact(note_id: int, body: FactIn):
+    """A person applies a suggested fact to the supplier comparison, or dismisses it."""
+    with db.connect() as conn:
+        note = conn.execute("SELECT * FROM company_notes WHERE pk = ?", (note_id,)).fetchone()
+        if note is None:
+            raise HTTPException(404, "Note not found")
+        facts = json.loads(note["facts_json"] or "{}")
+        suggestion = next((s for s in (facts.get(body.submission_id) or {}).get("suggestions", [])
+                           if s["factor_key"] == body.factor_key), None)
+        if suggestion is None:
+            raise HTTPException(404, "No such suggestion for that request")
+        if suggestion["status"] != "SUGGESTED":
+            raise HTTPException(409, f"Already {suggestion['status'].lower()}")
+        company = conn.execute("SELECT * FROM companies WHERE pk = ?", (note["company_pk"],)).fetchone()
+        if body.action == "apply":
+            apply_fact(conn, body.submission_id, company["name"], suggestion, note)
+        suggestion |= {"status": "APPLIED" if body.action == "apply" else "DISMISSED", "decided_by": DEMO_REVIEWER,
+                       "decided_at": db.now()}
+        conn.execute("UPDATE company_notes SET facts_json = ? WHERE pk = ?", (json.dumps(facts), note_id))
+        return detail(conn, company)
+
+
+def comparisons_with(conn, name: str) -> list[tuple[str, dict]]:
+    """Requests still comparing suppliers (in research) whose comparison includes this company."""
+    found = []
+    for row in conn.execute("SELECT pk, research_json FROM submissions WHERE status = 'Research' AND research_json IS NOT NULL"):
+        run = json.loads(row["research_json"]).get("suppliers") or {}
+        if any(s["name"] == name for s in run.get("suppliers", [])):
+            found.append((f"SUB-{row['pk']:04d}", run))
+    return found
+
+
+def suggest_facts(conn, name: str, text: str) -> dict:
+    result = {}
+    for sid, run in comparisons_with(conn, name):
+        meter = []
+        suggested = notes_facts.suggest(text, run["setup"]["factors"], meter)
+        if meter:
+            reader = type("Reader", (), {"name": suggested["generated_by"].split()[0], "version": notes_facts.VERSION_CLAUDE})
+            log_run(conn, "note_facts", sid, reader, meter, {"suggestions": len(suggested["suggestions"])})
+        if suggested["suggestions"]:
+            result[sid] = suggested
+    return result
+
+
+def apply_fact(conn, submission_id: str, name: str, suggestion: dict, note):
+    from ..research import suppliers as supplier_rules
+    row = conn.execute("SELECT status, research_json FROM submissions WHERE pk = ?", (db.parse_pk(submission_id),)).fetchone()
+    if row is None or row["status"] != "Research":
+        raise HTTPException(409, "That request is no longer comparing suppliers")
+    research = json.loads(row["research_json"])
+    run = research["suppliers"]
+    supplier = next((s for s in run["suppliers"] if s["name"] == name), None)
+    if supplier is None or suggestion["factor_key"] not in supplier["findings"]:
+        raise HTTPException(409, "The comparison no longer has that supplier or factor")
+    previous = supplier["findings"][suggestion["factor_key"]]
+    supplier["findings"][suggestion["factor_key"]] = {
+        "rating": suggestion["rating"], "finding": suggestion["finding"], "evidence": "team note",
+        "sources": [f"Team note, {note['created_at'][:10]}"], "must_have_met": suggestion["must_have_met"],
+        "note_id": note["pk"], "previous": {k: previous.get(k) for k in ("rating", "finding", "evidence", "sources", "must_have_met")}}
+    supplier_rules.rank(run["suppliers"], run["setup"])
+    conn.execute("UPDATE submissions SET research_json = ? WHERE pk = ?", (json.dumps(research), db.parse_pk(submission_id)))
+    db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "note_fact_applied", None, None,
+                 f"{name}: {suggestion['factor']} from a team note: {suggestion['finding']}")
 
 
 # ── Email: draft → a person approves → sent from their Outlook ───────────────
@@ -479,6 +556,18 @@ def facts_for(conn, name: str) -> dict | None:
     return None
 
 
+def with_current(conn, name: str, facts: dict) -> dict:
+    """Each suggestion next to what the comparison says now, so the person can compare before applying."""
+    for sid, suggested in facts.items():
+        row = conn.execute("SELECT research_json FROM submissions WHERE pk = ?", (db.parse_pk(sid),)).fetchone()
+        run = (json.loads(row["research_json"]).get("suppliers") or {}) if row and row["research_json"] else {}
+        supplier = next((s for s in run.get("suppliers", []) if s["name"] == name), {})
+        for s in suggested["suggestions"]:
+            current = (supplier.get("findings") or {}).get(s["factor_key"]) or {}
+            s["now"] = current.get("finding")
+    return facts
+
+
 def detail(conn, company) -> dict:
     base = summary(conn, company)
     emails = [dict(e) for e in conn.execute("SELECT * FROM emails WHERE company_pk = ? ORDER BY at DESC, pk DESC", (company["pk"],))]
@@ -486,8 +575,11 @@ def detail(conn, company) -> dict:
         e["id"] = e.pop("pk")
         e["offered"] = json.loads(e.pop("offered_json") or "null")
         e["submission_id"] = f"SUB-{e['submission_pk']:04d}" if e["submission_pk"] else None
-    notes = [dict(n) | {"submission_id": f"SUB-{n['submission_pk']:04d}" if n["submission_pk"] else None}
+    notes = [dict(n) | {"submission_id": f"SUB-{n['submission_pk']:04d}" if n["submission_pk"] else None,
+                        "facts": with_current(conn, company["name"], json.loads(n["facts_json"] or "{}"))}
              for n in conn.execute("SELECT * FROM company_notes WHERE company_pk = ? ORDER BY pk DESC", (company["pk"],))]
+    for n in notes:
+        n.pop("facts_json", None)
     meetings = meetings_for(conn, company["name"])
     timeline = ([{"at": n["created_at"], "kind": "note", "text": f"{n['tag']}: {n['text']}", "stage": n["stage"]} for n in notes]
                 + [{"at": e["at"], "kind": "email_" + e["direction"],

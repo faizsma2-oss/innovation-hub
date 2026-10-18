@@ -236,6 +236,8 @@ MIGRATIONS = {
     "meetings": {"m365_event_id": "TEXT"},
     # Times a supplier's reply offers, read and checked (see backend/meetings/replies.py).
     "emails": {"offered_json": "TEXT"},
+    # Facts suggested from a team note for each supplier comparison (see backend/companies/notes_facts.py).
+    "company_notes": {"facts_json": "TEXT"},
 }
 
 # Fictional starting records, so the inbox is not empty on first run.
