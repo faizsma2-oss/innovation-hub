@@ -31,7 +31,7 @@ function contactsHtml(record, supplier) {
         ${c.flags.map(f => `<br><span class="warning-inline">${escapeText(f)}</span>`).join('')}</li>`).join('')}</ul>`
       : '<p class="muted">The Research AI looks only for official business channels (sales, partnerships, demo booking, UAE office, local partner), each with its source page. No personal details.</p>'}
     <div class="inline-row">
-      <button type="button" class="find-contacts">${contacts.length ? 'Search again' : 'Find official contacts'}</button>
+      <button type="button" class="find-contacts" data-fresh="${contacts.length ? 1 : 0}">${contacts.length ? 'Search again' : 'Find official contacts'}</button>
       <button type="button" class="primary plan-meeting">Plan a meeting</button>
     </div>
     <details class="add-contact"><summary>Add a contact you already have</summary>
@@ -50,8 +50,9 @@ function wireContacts(record) {
     if (!find) continue;
     find.onclick = async () => {
       find.disabled = true;
-      find.textContent = 'Searching official channels… (about a minute)';
-      await postJson(`/api/submissions/${record.id}/contacts/find`, {supplier}, 'evaluation-error');
+      const fresh = find.dataset.fresh === '1';
+      find.textContent = fresh ? 'Searching official channels… (about a minute)' : 'Checking contacts on file, then searching…';
+      await postJson(`/api/submissions/${record.id}/contacts/find`, {supplier, fresh}, 'evaluation-error');
       await loadSubmissions(); openDetail(record.id);
     };
     track.querySelector('.ac-save').onclick = async () => {

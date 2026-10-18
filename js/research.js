@@ -230,6 +230,7 @@ function supplierResultsHtml(result) {
       <div class="meter"><span style="width:${s.fit_score ?? 0}%"></span></div>
       <div class="chips"><span class="chip chip-${chip}">${label}</span><span class="chip">${escapeText(s.confidence)} confidence</span></div>
       <p class="muted">${escapeText(s.headquarters)} · UAE: ${escapeText(s.uae_presence)}${s.website ? ` · <a href="${escapeText(s.website)}" target="_blank" rel="noopener noreferrer">website</a>` : ''}</p>
+      ${s.reused_from ? `<p class="reused-note">Reused from <strong>${escapeText(s.reused_from.submission_id)}</strong>, researched ${escapeText((s.reused_from.run_at ?? '').slice(0, 10))}${s.reused_from.stale ? ' · <span class="flag">older than 90 days: re-check prices and details</span>' : ''}</p>` : ''}
       <p>${escapeText(s.offering)}</p>
       <p><strong>Cost:</strong> ${cost}${s.cost.sources.map(url => ` <a href="${escapeText(url)}" target="_blank" rel="noopener noreferrer">source</a>`).join('')}</p>
       <details><summary>All ${factors.length} factors</summary><ul class="findings">${factors.map(f => {
@@ -268,11 +269,21 @@ async function openSupplierSetup(record) {
   box.innerHTML = '<p class="muted">Loading the questions…</p>';
   supplierSetup = await fetch('/api/research/supplier-setup').then(reply => reply.json());
   const previous = record.research.suppliers?.setup ?? supplierSetup.defaults;
+  const earlier = await fetch(`/api/submissions/${record.id}/suppliers/earlier`).then(r => r.json()).catch(() => []);
+  const days = n => n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`;
   const chosen = new Map(previous.factors.map(f => [f.key, f]));
   // Library factors (on if they were used last time) plus any custom factors used last time.
   setupFactors = supplierSetup.library.map(f => ({...f, on: chosen.has(f.key), importance: chosen.get(f.key)?.importance ?? f.importance}))
     .concat(previous.factors.filter(f => !supplierSetup.library.some(l => l.key === f.key)).map(f => ({...f, on: true, custom: true})));
   box.innerHTML = `<form class="supplier-form" id="supplier-form">
+    ${earlier.length ? `<div class="reuse-box"><h4>Earlier research you can reuse</h4>
+      <p class="muted">Other requests chose a similar approach. Reusing their suppliers saves a new web search (about $0.70 and 3 minutes).
+        Findings keep their sources and date; factors they didn't cover show as unknown.</p>
+      ${earlier.map(r => `<label class="reuse-pick"><input type="checkbox" class="reuse-run" value="${escapeText(r.submission_id)}" checked>
+        <span><strong>${escapeText(r.submission_id)}</strong> ${escapeText(r.title)} · ${escapeText(r.approach ?? '')}<br>
+        <span class="muted">${days(r.age_days)}${r.age_days > 90 ? ' <span class="flag">older than 90 days: re-check</span>' : ''} ·
+          ${escapeText(r.suppliers.map(s => s.name).join(', '))}</span></span></label>`).join('')}
+      <label class="reuse-pick"><input type="checkbox" id="web-search" checked> <span>Also search the web for new suppliers</span></label></div>` : ''}
     <h4>1. Which factors should suppliers be compared on, and how much does each matter?</h4>
     <div id="factor-rows"></div>
     <div class="suggest-row"><button type="button" id="suggest-factors">✨ Suggest factors for this option</button>
@@ -295,6 +306,11 @@ async function openSupplierSetup(record) {
     <p class="muted">Takes 2–4 minutes and searches the web. Your answers are remembered for next time.</p>
   </form>`;
   renderFactorRows();
+  const label = () => {
+    const web = get('web-search') ? get('web-search').checked : true;
+    get('start-suppliers').textContent = web ? 'Start supplier research' : 'Compare reused suppliers (no web search, free)';
+  };
+  if (get('web-search')) { get('web-search').onchange = label; label(); }
   get('add-factor').onclick = () => {
     const name = get('custom-name').value.trim();
     if (!name) return;
@@ -323,9 +339,11 @@ async function openSupplierSetup(record) {
       cost_policy: document.querySelector('input[name=cost_policy]:checked').value,
       supplier_count: Number(get('supplier-count').value),
       notes: get('supplier-notes').value,
+      reuse: [...document.querySelectorAll('.reuse-run:checked')].map(box => box.value),
+      web_search: get('web-search') ? get('web-search').checked : true,
     };
     get('start-suppliers').disabled = true;
-    get('start-suppliers').textContent = 'Searching the web and comparing suppliers… (2–4 minutes)';
+    get('start-suppliers').textContent = body.web_search ? 'Searching the web and comparing suppliers… (2–4 minutes)' : 'Comparing reused suppliers…';
     const ok = await sendReviewAction(`/api/submissions/${record.id}/suppliers`, body, record.id, 'supplier-error');
     if (!ok) { get('start-suppliers').disabled = false; get('start-suppliers').textContent = 'Start supplier research'; }
   };

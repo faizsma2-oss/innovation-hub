@@ -7,6 +7,7 @@ supplier research for the chosen option.
            └─ Research AI searches the web and compares suppliers ── team shortlists
 """
 import json
+import re
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
@@ -15,7 +16,7 @@ from pydantic import BaseModel, Field, model_validator
 from .. import db
 from ..models import SubmissionOut
 from ..review.routes import DEMO_REVIEWER, load
-from . import licensed, suppliers
+from . import licensed, reuse, suppliers
 from .researcher import CRITERIA, get_researcher, problem_facts, rank
 
 router = APIRouter(tags=["research"])
@@ -150,6 +151,8 @@ class SupplierSetupIn(BaseModel):
     cost_policy: Literal["published_only", "estimates", "relative"]
     supplier_count: int = Field(ge=3, le=6)
     notes: str = Field(default="", max_length=1000)
+    reuse: list[str] = Field(default_factory=list, max_length=5)   # earlier requests whose suppliers to reuse
+    web_search: bool = True                                          # False: reuse only, no new search, no cost
 
     @model_validator(mode="after")
     def check(self):
@@ -157,6 +160,10 @@ class SupplierSetupIn(BaseModel):
             raise ValueError("Each factor needs a different name")
         if not any(f.importance != "must" for f in self.factors):
             raise ValueError("Choose at least one factor that isn't a must-have, so suppliers can be ranked")
+        if not self.web_search and not self.reuse:
+            raise ValueError("Search the web, reuse earlier research, or both")
+        if any(not re.fullmatch(r"SUB-\d{4}", sid) for sid in self.reuse):
+            raise ValueError("Reuse earlier research by request number, e.g. SUB-0005")
         return self
 
 
@@ -187,14 +194,36 @@ def suggest_factors(submission_id: str):
     return [f | {"key": suppliers.slug(f["name"])} for f in factors]
 
 
+@router.get("/api/submissions/{submission_id}/suppliers/earlier")
+def earlier_research(submission_id: str):
+    """Supplier comparisons from other requests with a similar chosen approach."""
+    with db.connect() as conn:
+        record = in_research(conn, submission_id)
+        return reuse.earlier_runs(conn, db.parse_pk(submission_id), record["research"])
+
+
 @router.post("/api/submissions/{submission_id}/suppliers", response_model=SubmissionOut)
 def research_suppliers(submission_id: str, body: SupplierSetupIn):
-    setup = body.model_dump()
+    setup = body.model_dump(exclude={"reuse", "web_search"})
     with db.connect() as conn:
         record = in_research(conn, submission_id)
         db.set_setting(conn, SETUP_KEY, setup)   # remembered to pre-fill the next run
+        offered = {run["submission_id"] for run in reuse.earlier_runs(conn, db.parse_pk(submission_id), record["research"])}
+        if not set(body.reuse) <= offered:
+            raise HTTPException(422, "Reuse only earlier research offered for this request")
         researcher, meter = suppliers.get_supplier_researcher(), []
-        result = researcher.research(record, record["research"]["selected_option"], setup, meter)
+        if body.web_search:
+            result = researcher.research(record, record["research"]["selected_option"], setup, meter)
+        else:
+            result = {"suppliers": [], "summary": "Reused earlier research only: no new web search.", "searches": 0,
+                      "sources_retrieved": 0, "gaps": [], "generated_by": "reuse"}
+        if body.reuse:
+            reused = reuse.reused_suppliers(conn, body.reuse, setup)
+            result["suppliers"] = suppliers.rank(reuse.merge(result["suppliers"], reused), setup)
+            result["reused_from"] = body.reuse
+            db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "suppliers_reused", None, None,
+                         f"{len(reused)} suppliers reused from {', '.join(body.reuse)}"
+                         + ("" if body.web_search else " without a new web search"))
         research = record["research"]
         previous = research.get("suppliers") or {}
         research["suppliers"] = result | {"status": "PROPOSED", "setup": setup, "round": previous.get("round", 0) + 1,

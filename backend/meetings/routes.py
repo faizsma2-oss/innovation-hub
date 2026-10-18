@@ -10,7 +10,7 @@ Reminders are calculated in plain code from these records; nothing is sent autom
 """
 import json
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -30,6 +30,10 @@ OPEN_MEETING = ("planned", "invite_sent", "scheduled")
 
 class SupplierIn(BaseModel):
     supplier: str = Field(min_length=1, max_length=120)
+
+
+class ContactSearchIn(SupplierIn):
+    fresh: bool = False          # True: search again even if contacts are on file
 
 
 class ContactIn(SupplierIn):
@@ -96,9 +100,21 @@ def contact_types():
 
 
 @router.post("/api/submissions/{submission_id}/contacts/find")
-def find_contacts(submission_id: str, body: SupplierIn):
+def find_contacts(submission_id: str, body: ContactSearchIn):
     with db.connect() as conn:
         record, research, supplier = shortlisted_supplier(conn, submission_id, body.supplier)
+        if not body.fresh and (on_file := contacts_on_file(conn, db.parse_pk(submission_id), body.supplier)):
+            book = research.setdefault("contacts", {})
+            manual = [c for c in book.get(body.supplier, {}).get("contacts", []) if c.get("added_by") != "research-ai"]
+            book[body.supplier] = {"contacts": rank_contacts(on_file["contacts"] + manual),
+                                   "summary": f"Reused {len(on_file['contacts'])} official contacts found for "
+                                              f"{on_file['submission_id']} on {on_file['searched_at'][:10]}. No new search.",
+                                   "searched_at": on_file["searched_at"], "reused_from": on_file["submission_id"],
+                                   "cost_usd": 0, "searches": 0, "generated_by": "reuse"}
+            save_research(conn, submission_id, research)
+            db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "contacts_reused", None, None,
+                         f"{body.supplier}: {len(on_file['contacts'])} contacts from {on_file['submission_id']}")
+            return book[body.supplier]
         assistant, meter = get_assistant(), []
         found = assistant.find_contacts(record, supplier, meter)
         book = research.setdefault("contacts", {})
@@ -120,7 +136,7 @@ def add_contact(submission_id: str, body: ContactIn):
         entry = research.setdefault("contacts", {}).setdefault(body.supplier, {"contacts": []})
         entry["contacts"] = rank_contacts(entry["contacts"] + [{
             "type": body.type, "label": CHANNEL_LABELS[body.type], "value": body.value.strip(), "region": "unknown",
-            "note": body.note.strip(), "source_url": "", "flags": [], "added_by": DEMO_REVIEWER}])
+            "note": body.note.strip(), "source_url": "", "flags": [], "added_by": DEMO_REVIEWER, "added_at": db.now()}])
         save_research(conn, submission_id, research)
         return entry
 
@@ -345,6 +361,25 @@ def reminders():
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+CONTACTS_FRESH_DAYS = 90
+
+
+def contacts_on_file(conn, submission_pk: int, supplier: str) -> dict | None:
+    """The most recent official contacts found for this supplier in another request, if under 90 days old."""
+    best = None
+    for row in conn.execute("SELECT pk, research_json FROM submissions WHERE pk != ? AND research_json IS NOT NULL",
+                            (submission_pk,)):
+        book = (json.loads(row["research_json"]).get("contacts") or {}).get(supplier) or {}
+        found = book.get("contacts", [])                  # found by the Research AI or added by the team
+        stamp = book.get("searched_at") or max((c.get("added_at") or "" for c in found), default="") or None
+        if not found or not stamp or book.get("reused_from"):
+            continue
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(stamp)).days
+        if age <= CONTACTS_FRESH_DAYS and (best is None or stamp > best["searched_at"]):
+            best = {"submission_id": f"SUB-{row['pk']:04d}", "searched_at": stamp, "contacts": found}
+    return best
+
 
 def shortlisted_supplier(conn, submission_id: str, name: str):
     record = load(conn, submission_id)

@@ -582,3 +582,10 @@ a.button:hover { background: var(--fill-strong); }
 .offered small { opacity: 0.8; }
 .offered-bad { font-size: 13px; color: var(--muted); padding: 6px 0; }
 .reply-box .flag, .offered .flag { color: var(--warn); font-weight: 600; }
+
+/* ── 25. Reusing earlier research ────────────────────────────────────────── */
+.reuse-box { margin-bottom: 18px; padding: 14px 16px; border-radius: 16px; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.reuse-pick { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; font-size: 14px; }
+.reuse-pick input { width: auto; margin-top: 3px; accent-color: var(--accent); }
+.reused-note { font-size: 13px; color: var(--muted); }
+.reuse-box .flag, .reused-note .flag { color: var(--warn); font-weight: 600; }
