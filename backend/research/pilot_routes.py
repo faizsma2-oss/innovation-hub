@@ -13,13 +13,14 @@ import re
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field, model_validator
 
 from .. import db
 from ..models import SubmissionOut
 from ..review.routes import DEMO_REVIEWER, load
 from . import pilot as pilot_rules
+from . import pilot_import
 from .routes import log_run
 
 router = APIRouter(tags=["pilot"])
@@ -105,6 +106,65 @@ def log_measurement(submission_id: str, body: MeasurementIn):
         pilot.setdefault("measurements", []).append(body.model_dump(mode="json") | {"round": pilot.get("round", 1),
                                                                                    "recorded_by": DEMO_REVIEWER})
         save(conn, submission_id, research)
+        return db.get_submission(conn, submission_id)
+
+
+class ImportRowIn(BaseModel):
+    metric: str = Field(min_length=1, max_length=60)
+    phase: Literal["baseline", "pilot"]
+    value: float
+    date: date
+
+
+class ImportIn(BaseModel):
+    file_name: str = Field(min_length=1, max_length=200)
+    rows: list[ImportRowIn] = Field(min_length=1, max_length=pilot_import.MAX_ROWS)
+
+
+@router.post("/api/submissions/{submission_id}/pilot/import/preview")
+async def preview_import(submission_id: str, file: UploadFile = File(...)):
+    """Reads the file and shows what would be imported. Nothing is saved, and the file isn't kept."""
+    data = await file.read(pilot_import.MAX_BYTES + 1)
+    with db.connect() as conn:
+        record, _, pilot = in_pilot(conn, submission_id, ("Pilot planning", "Pilot running"))
+        setup = pilot.get("setup")
+        if not setup:
+            raise HTTPException(409, "Agree the pilot setup first, so the file's columns can be matched to its metrics")
+        try:
+            rows = pilot_import.read_table(file.filename, data)
+            result = pilot_import.preview(rows, setup["criteria"], date.fromisoformat(setup["start_date"]),
+                                          record["status"] == "Pilot running", current(pilot))
+        except pilot_import.ImportProblem as problem:
+            raise HTTPException(422, str(problem))
+    return result | {"file_name": file.filename}
+
+
+@router.post("/api/submissions/{submission_id}/pilot/import", response_model=SubmissionOut)
+def confirm_import(submission_id: str, body: ImportIn):
+    """The rows the person confirmed in the preview. Every row is checked again; all are saved, or none."""
+    with db.connect() as conn:
+        record, research, pilot = in_pilot(conn, submission_id, ("Pilot planning", "Pilot running"))
+        setup = pilot.get("setup")
+        if not setup:
+            raise HTTPException(409, "Agree the pilot setup first")
+        known = {c["key"] for c in setup["criteria"]}
+        readings = [{"row": i + 1, "metric": r.metric if r.metric in known else None, "metric_name": r.metric,
+                     "date": r.date, "value": r.value, "phase": r.phase, "problem": None}
+                    for i, r in enumerate(body.rows)]
+        for r in readings:
+            if r["metric"] is None:
+                r["problem"] = f"“{r['metric_name']}” isn't one of the pilot's metrics"
+        pilot_import.mark(readings, record["status"] == "Pilot running", current(pilot))
+        problems = [f"Row {r['row']}: {r['problem']}" for r in readings if r["problem"]]
+        if problems:
+            raise HTTPException(422, "Nothing imported. " + "; ".join(problems[:5]))
+        note = f"Imported from {body.file_name.strip()}"
+        pilot.setdefault("measurements", []).extend(
+            {"metric": r["metric"], "phase": r["phase"], "value": r["value"], "date": r["date"].isoformat(),
+             "note": note, "round": pilot.get("round", 1), "recorded_by": DEMO_REVIEWER} for r in readings)
+        save(conn, submission_id, research)
+        db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "pilot_measurements_imported", None, None,
+                     f"{len(readings)} readings from {body.file_name.strip()}")
         return db.get_submission(conn, submission_id)
 
 

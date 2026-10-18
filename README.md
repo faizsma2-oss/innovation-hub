@@ -209,7 +209,8 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
   - **Copilot agent** (`copilot/appPackage/`): a declarative agent with a read-only API plugin, so the team can ask Copilot in Teams or Outlook "where are we with this supplier?" and get an answer from the Hub's records. Each company page shows exactly what Copilot sees.
   - The public demo uses a **demo mailbox** with fictional replies, Teams links and transcripts. The real Microsoft Graph connector is built and tested against a fake Graph; switching it on needs Khazna IT to register the app and grant consent.
 - **Tools Khazna already licenses** (`backend/research/licensed.py`): the team keeps a list (assumed or confirmed by IT). Every set of solution options includes one built on those tools; the code removes tool names that aren't on the list and adds the option itself if the AI leaves it out, without changing how options are ranked.
-- 185 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Import pilot measurements from Excel or CSV** (`backend/research/pilot_import.py`): one row per reading or one column per metric; phase from a Phase column or the pilot's start date; day-first dates; a preview lists every row it can't use (bad date, not a number, unknown metric, duplicate) and nothing is saved until a person confirms. Plain code, no AI.
+- 193 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 

@@ -541,3 +541,12 @@ a.button:hover { background: var(--fill-strong); }
 .licensed-tools .lt-good { flex: 1; }
 .licensed-tools .lt-status { flex: 0 0 120px; }
 @media (max-width: 700px) { .licensed-tools .lt-name, .licensed-tools .lt-status { flex: 1 1 100%; } }
+
+/* ── 21. Pilot measurement import ────────────────────────────────────────── */
+.import-box input[type=file] { padding: 8px; }
+.import-table { font-size: 13px; }
+.import-table tr.skip td { color: var(--muted); }
+.import-table .flag, .import-box .flag { color: var(--warn); font-weight: 600; }
+.import-table { width: 100%; table-layout: auto; }
+.import-table th, .import-table td { white-space: nowrap; width: auto; }
+.import-table td:nth-child(3) { white-space: normal; min-width: 180px; }

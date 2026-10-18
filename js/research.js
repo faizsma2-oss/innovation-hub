@@ -580,7 +580,13 @@ function pilotWorkHtml(record) {
       <select id="m-phase" aria-label="Phase"><option value="baseline">Baseline</option>${runningNow ? '<option value="pilot" selected>Pilot</option>' : ''}</select>
       <input id="m-value" type="number" step="any" required placeholder="Value" aria-label="Value">
       <input id="m-date" type="date" required value="${new Date().toISOString().slice(0, 10)}" aria-label="Date">
-      <button type="submit">Log</button></form>` : ''}
+      <button type="submit">Log</button></form>
+    <details class="ask-again import-box" id="import-box"><summary>Import from Excel or CSV</summary>
+      <p class="muted">One row per reading (Date, Metric, Value) or one column per metric (Date, ${escapeText(setup.criteria.map(c => c.metric).join(', '))}).
+        Optional Phase column; otherwise dates before ${escapeText(setup.start_date)} count as baseline. Dates like 03/11/2026 are read day-first.
+        You'll see a preview first. Nothing is saved until you confirm.</p>
+      <div class="inline-row"><input type="file" id="import-file" accept=".xlsx,.csv" aria-label="Excel or CSV file"></div>
+      <div id="import-preview"></div></details>` : ''}
     <h4>Observations</h4>${list((pilot.observations ?? []).map(o => o.text))}
     ${planning || runningNow ? `<div class="inline-row"><input id="observation-text" placeholder="What happened? e.g. the export failed on Tuesday" maxlength="2000">
       <button type="button" id="add-observation">Add</button></div>` : ''}`;
@@ -602,6 +608,20 @@ function pilotWorkHtml(record) {
       ${d.agreed_with_recommendation ? '· agreed with the recommendation' : `· recommendation was ${escapeText(d.recommended)}`}</p>`;
   }
   return html + '<p id="pilot-error" class="error-text" role="alert"></p></div>';
+}
+
+function importPreviewHtml(result) {
+  const ignored = result.columns.filter(c => !c.key).map(c => c.header);
+  return `<p><strong>${result.ready} readings ready</strong> (${result.baseline} baseline, ${result.pilot} pilot)
+      ${result.skipped ? ` · <span class="flag">${result.skipped} can't be used</span>` : ''}
+      <span class="muted"> · ${escapeText(result.layout)}${result.empty_cells ? ` · ${result.empty_cells} empty cells skipped` : ''}
+      ${ignored.length ? ` · columns ignored: ${escapeText(ignored.join(', '))}` : ''}</span></p>
+    <div class="matrix-wrap"><table class="scores import-table"><thead><tr><th>Row</th><th>Date</th><th>Metric</th><th>Phase</th><th>Value</th><th></th></tr></thead>
+    <tbody>${result.rows.map(r => `<tr class="${r.problem ? 'skip' : ''}"><td>${r.row}</td><td>${escapeText(r.date ?? '–')}</td>
+      <td>${escapeText(r.metric_name)}</td><td>${escapeText(r.phase ?? '–')}</td><td>${r.value ?? '–'}</td>
+      <td>${r.problem ? `<span class="flag">${escapeText(r.problem)}</span>` : '✓'}</td></tr>`).join('')}</tbody></table></div>
+    ${result.ready ? `<div class="inline-row"><button type="button" class="primary" id="import-confirm">Import ${result.ready} readings</button>
+      <span class="muted">Rows marked in orange are left out.</span></div>` : '<p class="muted">Nothing to import. Fix the file and choose it again.</p>'}`;
 }
 
 function setupFormHtml(pilot) {
@@ -676,6 +696,22 @@ function wirePilot(record) {
     event.preventDefault();
     send('measurements', {metric: get('m-metric').value, phase: get('m-phase').value, value: Number(get('m-value').value),
       date: get('m-date').value}, event.submitter);
+  };
+  if (get('import-file')) get('import-file').onchange = async event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    get('import-preview').innerHTML = '<p class="muted">Reading the file…</p>';
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch(`/api/submissions/${id}/pilot/import/preview`, {method: 'POST', body: form});
+    const result = await response.json();
+    if (!response.ok) { get('import-preview').innerHTML = `<p class="error-text">${escapeText(result.detail)}</p>`; return; }
+    get('import-preview').innerHTML = importPreviewHtml(result);
+    if (get('import-confirm')) get('import-confirm').onclick = () => {
+      const rows = result.rows.filter(r => !r.problem).map(({metric, phase, value, date}) => ({metric, phase, value, date}));
+      get('import-confirm').textContent = 'Importing…';
+      send('import', {file_name: result.file_name, rows}, get('import-confirm'));
+    };
   };
   if (get('add-observation')) get('add-observation').onclick = () =>
     send('observations', {text: get('observation-text').value}, get('add-observation'));
