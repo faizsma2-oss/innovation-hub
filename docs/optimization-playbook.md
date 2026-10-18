@@ -83,7 +83,7 @@ I = impact, C = confidence, E = effort.
 | 4 Screening | ✅ **Done.** **Earned autonomy dashboard**: how often the team agrees with the recommendation, per route | 1 code | 3 | 4 | 2 | **6** |
 | 13 Notes | ✅ **Done.** Turn notes into **structured facts** (price, certificates, hosting) that update the supplier comparison | 2 Claude | 3 | 3 | 2 | 4.5 |
 | 3 Routing | ✅ **Done.** Suggest **rule changes** from the team's routing corrections | 1 code + 6 person | 3 | 3 | 2 | 4.5 |
-| 1 Intake | **Arabic and voice** input for employees | 2 Claude | 4 | 3 | 3 | 4 |
+| 1 Intake | ✅ **Done.** **Arabic and voice** input for employees | 2 Claude | 4 | 3 | 3 | 4 |
 | 14 Evaluation | **Upload documents** (quotes, security certificates) and extract evidence with sources | 2 Claude | 4 | 3 | 4 | 3 |
 
 **Later, with Khazna IT** (needs the Microsoft 365 tenant, consent or licences):
@@ -97,6 +97,8 @@ I = impact, C = confidence, E = effort.
 | 18 | Management approves the business case in **Teams Approvals** | 4 Graph + 6 person |
 | 19 | Turn the handover checklist into **Planner tasks** | 4 Graph |
 | 23 | Install the Copilot agent for the innovation team | 5 Copilot |
+| 1 | Speech to text with **Azure AI Speech in UAE North**, so audio stays in the UAE (today the browser's own service is used) | 4 Microsoft |
+| 1 | The rest of the interface in Arabic (today: the chat is translated, screens and the summary stay in English) | 1 code |
 
 **Before going live** (not needed for the demo):
 

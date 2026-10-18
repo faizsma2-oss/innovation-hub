@@ -115,7 +115,7 @@ function renderCards(container, records, forReviewer = false) {
       <div class="card-top"><span>${escapeText(record.id)} · ${escapeText(ROUTE_LABELS[record.route] ?? 'Linked')}</span>
         <span>${forReviewer && record.score != null && record.innovation_track !== 'none'
           ? `<span class="score" title="Priority 0–100; unknown criteria excluded">${record.score}/100</span> ` : ''}<span class="status">${escapeText(record.status)}</span></span></div>
-      <h3>${escapeText(record.title)}</h3><p>${escapeText(record.description)}</p>
+      <h3 dir="auto">${escapeText(record.title)}</h3><p dir="auto">${escapeText(record.description)}</p>
       <div class="chips">${chips(record, forReviewer)}</div>
       ${record.supporters ? `<p class="supporters">+${record.supporters} linked ${record.supporters === 1 ? 'request' : 'requests'}</p>` : ''}
       <button data-record="${escapeText(record.id)}">View details ↗</button>

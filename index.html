@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Innovation Hub · Learning demo</title>
   <link rel="stylesheet" href="styles/theme.css?v=24">
-  <link rel="stylesheet" href="styles/layout.css?v=32">
+  <link rel="stylesheet" href="styles/layout.css?v=34">
 </head>
 <body>
 <div class="shell">
@@ -106,7 +106,11 @@
       <div id="chat-rating" class="chat-rating" hidden></div>
       <form id="chat-form">
         <label for="chat-input" class="visually-hidden">Your message</label>
-        <textarea id="chat-input" rows="2" maxlength="2000" placeholder="Type here… (Enter to send)"></textarea>
+        <textarea id="chat-input" dir="auto" rows="2" maxlength="2000" placeholder="Type or speak, in English or Arabic… (Enter to send)"></textarea>
+        <div class="voice" id="voice" hidden>
+          <select id="voice-lang" aria-label="Speech language"><option value="en-US">English</option><option value="ar-AE">العربية</option></select>
+          <button type="button" id="voice-button" aria-pressed="false" title="Speak instead of typing">🎙 Speak</button>
+        </div>
         <button class="primary" type="submit" id="chat-send">Send</button>
       </form>
       <div id="chat-persistent" class="chat-persistent" hidden>
@@ -170,8 +174,9 @@
   <section id="detail-history"></section>
 </dialog>
 
-<script src="js/app.js?v=32"></script>
-<script src="js/intake.js?v=24"></script>
+<script src="js/app.js?v=33"></script>
+<script src="js/intake.js?v=34"></script>
+<script src="js/voice.js?v=33"></script>
 <script src="js/review.js?v=24"></script>
 <script src="js/research.js?v=31"></script>
 <script src="js/meetings.js?v=28"></script>

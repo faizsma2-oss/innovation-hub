@@ -614,3 +614,14 @@ a.button:hover { background: var(--fill-strong); }
 .rule-card { margin-bottom: 12px; padding: 16px 18px; border-radius: var(--radius-large); background: var(--surface); box-shadow: var(--shadow); font-size: 14px; }
 .rule-card p { margin: 0 0 6px; }
 .rule-list { padding-left: 18px; font-size: 14px; }
+
+/* ── 29. Arabic and voice ────────────────────────────────────────────────── */
+.bubble[dir=auto] { unicode-bidi: plaintext; }
+#chat-form { flex-wrap: wrap; }
+.voice { display: flex; gap: 6px; align-items: center; }
+.voice select { width: auto; font-size: 13px; padding: 6px 8px; }
+.voice button { font-size: 13px; padding: 6px 12px; }
+.voice button[aria-pressed=true] { background: var(--bad); color: #fff; }
+[dir=auto] { unicode-bidi: plaintext; }
+#chat-form textarea { flex-basis: 100%; }
+#chat-form #chat-send { margin-left: auto; }

@@ -21,7 +21,6 @@ an innovation request: that stays with the innovation team.
 """
 import json
 import uuid
-from . import learned_routes
 from datetime import datetime
 
 from pydantic import ValidationError
@@ -29,7 +28,8 @@ from pydantic import ValidationError
 from .. import db
 from ..models import DEMO_USER, INNOVATION_ROUTES, ROUTES, ROUTINE_ROUTES, SubmissionIn
 from ..review import screening
-from . import rules, search
+from . import language, learned_routes, rules, search
+from ..llm import LLMError
 from .brain import MOCK, QUESTIONS, get_brain
 
 MAX_QUESTIONS = 4
@@ -40,6 +40,8 @@ SUBMITTABLE = {"route_offer", "clarifying", "solution_offer", "link_offer", "con
 
 GREETING = ("What is making your work difficult?\n\nDescribe it in your own words. You don't need to know "
             "the category, the solution or what it costs. \"I don't know\" is a fine answer to any question.")
+INCIDENT_QUESTION_AR = ("قبل أي شيء: إذا كان أحد في خطر، أو هناك حادث تبريد أو كهرباء أو أمن يحدث الآن، توقّف عن "
+                        "استخدام هذه المحادثة واستخدم قناة الحوادث التشغيلية أو السلامة أو الأمن فورًا.\n\nهل هذا حادث يحدث الآن؟\n\n")
 INCIDENT_QUESTION = ("Before anything else: if someone is in danger, or a cooling, power or security incident is "
                      "happening right now, stop using this chat and use the operations, safety or security "
                      "incident channel immediately.\n\nIs this an active incident?")
@@ -122,6 +124,7 @@ def handle_message(session_id: str, text: str | None = None, action: str | None 
             turn.on_text(text)
         else:
             turn.on_action(action or "")
+        turn.localise()
         turn.save(input_text=text if text is not None else f"[action] {action}")
         return turn.reply()
 
@@ -179,18 +182,57 @@ class Turn:
         if not text:
             raise IntakeError(422, "Message is empty")
         log_message(self.conn, self.session_id, "employee", text)
+        original, untranslated = None, False
+        if language.is_arabic(text):
+            # Translate in: the rules work on English; the original words are kept for the team.
+            self.state["language"], original = "ar", text
+            self.state["notes"].append(f"Original (Arabic): «{text[:1500]}»")
+            try:
+                if not language.available():
+                    raise LLMError("Claude is off or over budget")
+                english = language.to_english(text, self.meter)
+                if language.numbers_added(english, text):
+                    self.state["flags"].append("translation_numbers")
+                    self.state["notes"].append(f"Check the translation: it has a number the Arabic doesn't (“{english[:200]}”)")
+                log_message(self.conn, self.session_id, "employee (English translation)", english)
+                text = english
+            except LLMError:
+                untranslated = True
+                if "untranslated" not in self.state["flags"]:
+                    self.state["flags"].append("untranslated")
 
         if rules.looks_like_instruction_attempt(text) and "instruction_attempt" not in self.state["flags"]:
             self.state["flags"].append("instruction_attempt")
             self.state["notes"].append(f"Employee message contained an instruction to the assistant: \"{text[:200]}\"")
 
-        # Guardrail: incident words pause everything, whatever stage we're in.
-        if not self.state["safety_cleared"] and rules.is_safety_concern(text):
+        # Guardrail: incident words pause everything, whatever stage we're in (Arabic words checked on the original).
+        if not self.state["safety_cleared"] and (rules.is_safety_concern(text)
+                                                 or (original and language.arabic_safety_concern(original))):
             self.state["held"] = {"stage": self.stage, "text": text}
             self.stage = "safety_check"
-            return self.say(INCIDENT_QUESTION, [option("Yes, it's happening now", "emergency_yes"),
-                                                option("No, it's an improvement idea", "emergency_no")])
+            self.say((INCIDENT_QUESTION_AR if original else "") + INCIDENT_QUESTION,
+                     [option("Yes, it's happening now / نعم، يحدث الآن", "emergency_yes"),
+                      option("No, it's an improvement idea / لا، إنها فكرة للتحسين", "emergency_no")]
+                     if original else [option("Yes, it's happening now", "emergency_yes"),
+                                       option("No, it's an improvement idea", "emergency_no")])
+            self.localised = bool(original)                 # already in both languages
+            return
         self.dispatch_text(text)
+        if untranslated:
+            self.message, self.localised = language.NO_TRANSLATOR + "\n\n" + self.message, True
+
+    def localise(self):
+        """Translate out: the reply and its buttons in Arabic, when the employee is writing in Arabic."""
+        if self.state.get("language") != "ar" or getattr(self, "localised", False) or not self.message:
+            return
+        if not language.available():
+            return
+        try:
+            message, labels = language.to_arabic(self.message, [o["label"] for o in self.options], self.meter)
+        except LLMError:
+            return                                          # English is still correct, just not translated
+        self.message = message
+        self.options = [o | {"label": label} for o, label in zip(self.options, labels)]
 
     def dispatch_text(self, text: str):
         if self.stage == "listening":

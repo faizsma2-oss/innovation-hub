@@ -49,6 +49,7 @@ function showDraft(draft, unknown) {
       element.value = draft[key] ?? (key === 'department' ? 'Not specified' : '');
     }
     element.placeholder = unknown.includes(key) ? 'Unknown' : '';
+    element.dir = 'auto';            // Arabic summaries read right to left
     element.classList.toggle('filled', Boolean(draft[key]) && key !== 'department');
   }
 }
@@ -56,6 +57,7 @@ function showDraft(draft, unknown) {
 function addChatLine(role, text) {
   const line = document.createElement('li');
   line.className = `bubble ${role}`;
+  line.dir = 'auto';                 // Arabic lines read right to left, English left to right
   line.textContent = text;
   get('chat-log').append(line);
   line.scrollIntoView({block: 'end', behavior: 'smooth'});
