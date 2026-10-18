@@ -21,7 +21,10 @@ DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "012345678901
 # Possible active incidents, in Arabic (MSA and common Gulf usage).
 ARABIC_INCIDENT = [r"دخان", r"حريق", r"نار", r"رائحة\s*حريق", r"إصاب", r"اصاب", r"جرح", r"مجروح", r"صعق", r"كهرباء\s*مكشوف",
                    r"تسرب", r"تسريب", r"فيضان", r"انقطاع\s*(?:ال)?كهرباء", r"(?:انقطع|انقطعت)\s*(?:ال)?كهرباء",
-                   r"ارتفاع\s*(?:درجة\s*)?(?:ال)?حرار", r"اقتحام", r"دخيل", r"شخص\s*غريب", r"سلاح"]
+                   # "Overheating", as in the English list: excess heat, or heat rising right now. "Temperature
+                   # rises" in general (e.g. "we notice them late") is an improvement topic, not an incident.
+                   r"سخونة\s*زائدة", r"حرارة\s*زائدة", r"(?:ارتفاع|ارتفعت|ترتفع)\s*(?:درجة\s*)?(?:ال)?حرار\S*.{0,40}(?:الآن|حاليا|حاليًا)",
+                   r"اقتحام", r"دخيل", r"شخص\s*غريب", r"سلاح"]
 
 NO_TRANSLATOR = ("المساعد باللغة العربية يحتاج إلى المترجم الآلي، وهو غير متاح الآن. يمكنك المتابعة بالإنجليزية، "
                  "أو الضغط على \"Submit now\" وسيقرأ أحد أعضاء الفريق كلماتك الأصلية.\n\n"

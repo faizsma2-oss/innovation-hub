@@ -95,3 +95,11 @@ def test_english_conversations_are_untouched(client, translator):
     fake = translator()
     reply = Chat(client).say("Every week we manually combine reports from several systems.")
     assert not reply["message"].startswith("[AR]") and fake.calls == []
+
+
+def test_arabic_safety_words_match_the_english_list():
+    """Found in the live check: "we notice temperature rises late" isn't an incident, in either language."""
+    assert not language.arabic_safety_concern("أحيانًا تضيع الأوراق، فنتأخر في ملاحظة ارتفاع الحرارة.")
+    assert language.arabic_safety_concern("ارتفاع درجة الحرارة في قاعة الخوادم الآن")
+    assert language.arabic_safety_concern("هناك سخونة زائدة في المبرد")
+    assert language.arabic_safety_concern("يوجد تسرب ماء بالقرب من الخوادم")
