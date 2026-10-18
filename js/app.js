@@ -47,6 +47,7 @@ async function loadSubmissions() {
     if (typeof loadMeetings === 'function') loadMeetings();   // js/meetings.js
     if (typeof loadPortfolio === 'function') loadPortfolio(); // js/portfolio.js
     if (typeof loadCompanies === 'function') loadCompanies(); // js/companies.js
+    if (typeof loadAutonomy === 'function') loadAutonomy();   // js/autonomy.js
   } catch (error) {
     const message = location.protocol === 'file:'
       ? 'This page needs the server. In the terminal run: fastapi dev backend/main.py — then open http://127.0.0.1:8000'

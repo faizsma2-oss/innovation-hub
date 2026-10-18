@@ -589,3 +589,14 @@ a.button:hover { background: var(--fill-strong); }
 .reuse-pick input { width: auto; margin-top: 3px; accent-color: var(--accent); }
 .reused-note { font-size: 13px; color: var(--muted); }
 .reuse-box .flag, .reused-note .flag { color: var(--warn); font-weight: 600; }
+
+/* ── 26. Earned autonomy ─────────────────────────────────────────────────── */
+.autonomy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.autonomy-card { padding: 18px 20px; border-radius: var(--radius-large); background: var(--surface); box-shadow: var(--shadow); font-size: 14px; }
+.autonomy-card.ready { box-shadow: inset 3px 0 0 var(--good), var(--shadow); }
+.autonomy-card.keep { box-shadow: inset 3px 0 0 var(--bad), var(--shadow); }
+.autonomy-card p { margin: 8px 0 0; }
+.autonomy-figure { display: flex; align-items: baseline; gap: 10px; margin-top: 10px; }
+.autonomy-figure strong { font-size: 30px; letter-spacing: -0.03em; }
+.autonomy-figure span { font-size: 13px; color: var(--muted); }
+.autonomy-card ul { margin: 6px 0 0; padding-left: 18px; }

@@ -16,6 +16,7 @@ from . import budget, db, examples
 from .companies.routes import router as companies_router
 from .intake.routes import router as intake_router
 from .library.routes import router as library_router
+from .review.autonomy import router as autonomy_router
 from .intake.brain import get_brain
 from .models import DEMO_USER, Status, SubmissionIn, SubmissionOut
 from .review import screening
@@ -130,6 +131,7 @@ app.include_router(scale_router)
 app.include_router(reports_router)
 app.include_router(companies_router)
 app.include_router(library_router)
+app.include_router(autonomy_router)
 
 
 # 3. Routes. Each one pairs an address with a function.
