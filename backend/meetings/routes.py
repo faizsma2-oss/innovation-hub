@@ -21,7 +21,7 @@ from ..review.routes import DEMO_REVIEWER, load
 from ..research import suppliers as supplier_rules
 from ..research.routes import log_run
 from . import calendar
-from .assistant import CHANNEL_LABELS, CHANNEL_TYPES, get_assistant, rank_contacts
+from .assistant import CHANNEL_LABELS, CHANNEL_TYPES, MOCK_ASSISTANT, get_assistant, rank_contacts
 
 router = APIRouter(tags=["meetings"])
 ACTIVE_STAGES = ("Research", "Pilot planning", "Pilot running")
@@ -115,8 +115,13 @@ def find_contacts(submission_id: str, body: ContactSearchIn):
             db.add_event(conn, db.parse_pk(submission_id), DEMO_REVIEWER, "contacts_reused", None, None,
                          f"{body.supplier}: {len(on_file['contacts'])} contacts from {on_file['submission_id']}")
             return book[body.supplier]
-        assistant, meter = get_assistant(), []
-        found = assistant.find_contacts(record, supplier, meter)
+        why = no_live_search(supplier)
+        # Fictional suppliers can't be found on the web: show example contacts and say so, without spending.
+        assistant, meter = (MOCK_ASSISTANT if why else get_assistant()), []
+        found = (assistant.find_contacts(record, supplier) | {"notice": why}) if why \
+            else assistant.find_contacts(record, supplier, meter)
+        if not why and found.get("generated_by", "").startswith(MOCK_ASSISTANT.name):
+            found["notice"] = live_search_unavailable()
         book = research.setdefault("contacts", {})
         manual = [c for c in book.get(body.supplier, {}).get("contacts", []) if c.get("added_by") != "research-ai"]
         book[body.supplier] = found | {"contacts": rank_contacts(found["contacts"] + manual), "searched_at": db.now(),
@@ -363,6 +368,22 @@ def reminders():
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 CONTACTS_FRESH_DAYS = 90
+
+
+def no_live_search(supplier: dict) -> str | None:
+    website, name = (supplier.get("website") or "").lower(), supplier.get("name") or ""
+    if "(fictional)" in name.lower() or re.search(r"(^|[/.])example\.com|\.example([/:]|$)", website):
+        return ("This is a fictional example supplier, so there's nothing real to find on the web. These are example "
+                "contacts for trying the email and meeting steps. Run supplier research on a real request to see a live "
+                "contact search, or add a contact you already have.")
+    return None
+
+
+def live_search_unavailable() -> str:
+    from .. import budget
+    blocked = budget.status().get("blocked")
+    return ((blocked + " ") if blocked else "The AI assistant isn't switched on here. ") + \
+        "These are example contacts, not a live search."
 
 
 def contacts_on_file(conn, submission_pk: int, supplier: str) -> dict | None:

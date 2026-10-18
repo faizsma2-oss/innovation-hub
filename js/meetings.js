@@ -22,8 +22,9 @@ function contactsHtml(record, supplier) {
   const contacts = book?.contacts ?? [];
   const link = c => c.type === 'phone' ? `tel:${c.value.replace(/[^+0-9]/g, '')}` : isEmail(c.value) ? `mailto:${c.value}` : c.value;
   return `<details class="contacts-box" ${contacts.length ? '' : 'open'}><summary>Contacts and meetings${contacts.length ? ` · ${contacts.length} contacts` : ''}</summary>
-    ${book?.summary ? `<p class="muted">${escapeText(book.summary)}</p>` : ''}
-    ${book?.error ? `<p class="warning">Live search failed (${escapeText(book.error)}), so these are examples.</p>` : ''}
+    ${book?.notice ? `<p class="notice-inline">${escapeText(book.notice)}</p>`
+      : book?.summary ? `<p class="muted">${escapeText(book.summary)}</p>` : ''}
+    ${book?.error ? `<p class="warning">The live search didn't work (${escapeText(book.error)}), so these are example contacts. Try “Search again”, or add a contact you already have.</p>` : ''}
     ${contacts.length ? `<ul class="contact-list">${contacts.map(c => `<li>
         <span class="chip ${c.best ? 'chip-rec-accept' : ''}">${c.best ? 'Best route · ' : ''}${escapeText(c.label)}</span>
         <a href="${escapeText(link(c))}" target="_blank" rel="noopener noreferrer">${escapeText(c.value)}</a>

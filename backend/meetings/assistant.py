@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 import anthropic
 
-from .. import budget, llm
+from .. import llm
 from ..intake import rules
 from ..research import evaluation
 from ..research.suppliers import normalise_url, retrieved_urls
@@ -111,7 +111,7 @@ class MockMeetingAssistant:
                {"type": "demo_booking_link", "value": "https://example.com/book-a-demo", "region": "global",
                 "note": "Example booking page (fictional)", "source_url": "https://example.com/contact"}]
         contacts = check_contacts(raw, {"website": "https://example.com"}, {"https://example.com/contact"})
-        return {"contacts": contacts, "summary": "Fictional example contacts from the scripted assistant (no AI key). "
+        return {"contacts": contacts, "summary": "Fictional example contacts, not a live search. "
                 f"Look on {site} for the real sales or partnership contact.", "searches": 0,
                 "generated_by": f"{self.name} {self.version}"}
 
@@ -256,9 +256,10 @@ class ClaudeMeetingAssistant:
             meter.append(llm.fallback_entry(self.fallback.name, self.fallback.version, error))
 
     def find_contacts(self, record: dict, supplier: dict, meter: list | None = None) -> dict:
-        if not llm.claude_enabled("web_search"):
+        # A contact search is cheap (about 10 cents): it counts against the dollar caps, not against the
+        # one-a-day allowance meant for the expensive supplier research.
+        if not llm.claude_enabled():
             return self.fallback.find_contacts(record, supplier)
-        budget.record(0, web_run=True)
         brief = {"supplier": {k: supplier.get(k) for k in ("name", "website", "headquarters", "uae_presence")}}
         tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 6},
                  {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5}]
