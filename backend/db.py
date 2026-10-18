@@ -234,6 +234,8 @@ MIGRATIONS = {
     "solutions": {"kind": "TEXT NOT NULL DEFAULT 'tool'"},
     # Milestone 12: the Outlook calendar event behind a meeting booked through Microsoft 365.
     "meetings": {"m365_event_id": "TEXT"},
+    # Times a supplier's reply offers, read and checked (see backend/meetings/replies.py).
+    "emails": {"offered_json": "TEXT"},
 }
 
 # Fictional starting records, so the inbox is not empty on first run.

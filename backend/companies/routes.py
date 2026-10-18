@@ -18,7 +18,8 @@ from pydantic import BaseModel, Field
 
 from .. import db
 from ..m365.client import M365Error, get_client, mode
-from ..meetings import calendar
+from ..meetings import calendar, replies as reply_reader
+from ..research.routes import log_run
 from ..review.routes import DEMO_REVIEWER
 
 router = APIRouter(tags=["companies"])
@@ -165,12 +166,39 @@ def check_replies(company_id: str):
             for reply in replies:
                 if conn.execute("SELECT 1 FROM emails WHERE m365_id = ? AND direction = 'in'", (reply["message_id"],)).fetchone():
                     continue
+                offered = read_offer(conn, reply["body"], reply["received_at"], sent["submission_pk"])
                 conn.execute("INSERT INTO emails (company_pk, submission_pk, meeting_pk, direction, status, address, subject,"
-                             " body, m365_id, conversation_id, at) VALUES (?, ?, ?, 'in', 'RECEIVED', ?, ?, ?, ?, ?, ?)",
+                             " body, m365_id, conversation_id, at, offered_json) VALUES (?, ?, ?, 'in', 'RECEIVED', ?, ?, ?, ?, ?, ?, ?)",
                              (company["pk"], sent["submission_pk"], sent["meeting_pk"], reply["from"], reply["subject"][:200],
-                              reply["body"][:10000], reply["message_id"], sent["conversation_id"], reply["received_at"]))
+                              reply["body"][:10000], reply["message_id"], sent["conversation_id"], reply["received_at"],
+                              json.dumps(offered)))
                 new += 1
         return detail(conn, company) | {"new_replies": new}
+
+
+def read_offer(conn, body: str, received_at: str, submission_pk: int | None) -> dict:
+    """The meeting times a reply offers, read by Claude (or plain rules) and checked in code."""
+    meter = []
+    received = datetime.fromisoformat(received_at.replace("Z", "+00:00")).astimezone(calendar.DUBAI).date()
+    offered = reply_reader.offered_times(body, received, meter)
+    if meter:
+        reader = type("Reader", (), {"name": offered["generated_by"].split()[0], "version": reply_reader.VERSION_CLAUDE})
+        log_run(conn, "reply_times", f"SUB-{submission_pk:04d}" if submission_pk else "", reader, meter,
+                {"times": len(offered["times"])})
+    return offered
+
+
+@router.post("/api/meetings/{meeting_id}/check-replies")
+def check_meeting_replies(meeting_id: int):
+    """Check for the supplier's answer from the meeting itself."""
+    with db.connect() as conn:
+        meeting = conn.execute("SELECT supplier FROM meetings WHERE pk = ?", (meeting_id,)).fetchone()
+        if meeting is None:
+            raise HTTPException(404, "Meeting not found")
+        company = ensure_company(conn, meeting["supplier"])
+    found = check_replies(f"CO-{company['pk']:04d}")["new_replies"]
+    from ..meetings.routes import read_meeting
+    return read_meeting(meeting_id) | {"new_replies": found}
 
 
 # ── Meetings booked through Outlook with a Teams link, and the Teams transcript ──
@@ -456,6 +484,7 @@ def detail(conn, company) -> dict:
     emails = [dict(e) for e in conn.execute("SELECT * FROM emails WHERE company_pk = ? ORDER BY at DESC, pk DESC", (company["pk"],))]
     for e in emails:
         e["id"] = e.pop("pk")
+        e["offered"] = json.loads(e.pop("offered_json") or "null")
         e["submission_id"] = f"SUB-{e['submission_pk']:04d}" if e["submission_pk"] else None
     notes = [dict(n) | {"submission_id": f"SUB-{n['submission_pk']:04d}" if n["submission_pk"] else None}
              for n in conn.execute("SELECT * FROM company_notes WHERE company_pk = ? ORDER BY pk DESC", (company["pk"],))]

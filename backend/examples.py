@@ -7,6 +7,7 @@ scripted assistants only: seeding never calls Claude or the web (llm.scripted_on
 sandbox stays fast. Every title starts with "Example:" and every record is submitted by
 "example-employee", so they never appear as the demo employee's own requests.
 """
+import json
 from datetime import datetime, time, timedelta
 
 from . import db, llm
@@ -195,6 +196,10 @@ def supplier_story(sid: str, first: str, second: str, today):
                       "[DEMO REPLY, fictional]\n\nHello,\n\nThank you for reaching out. We'd be glad to show you alarm "
                       f"grouping. Would {at(-3, 10):%A %d %B} at 10:00 (UAE time) work for a Teams call?\n\n"
                       "Best regards,\nUAE sales team", int(first_id[3:])))
+        reply = conn.execute("SELECT pk, body, at, submission_pk FROM emails WHERE company_pk = ? AND direction = 'in'",
+                             (int(first_id[3:]),)).fetchone()
+        conn.execute("UPDATE emails SET offered_json = ? WHERE pk = ?",
+                     (json.dumps(companies.read_offer(conn, reply["body"], reply["at"], reply["submission_pk"])), reply["pk"]))
     companies.book_meeting(meeting["id"], companies.BookIn(start_at=at(-3, 10), duration_min=45))
     meetings.debrief(meeting["id"], meetings.NotesIn(notes=(
         f"Example meeting notes (fictional). {first} showed alarm grouping on a sample of our BMS alarms. "

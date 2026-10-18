@@ -77,7 +77,9 @@ function renderCompany(c) {
       <button type="button" class="primary de-send" disabled>Approve &amp; send</button></div>`).join('')}
     ${thread.length ? `<ul class="email-thread">${thread.map(e => `<li class="${e.direction}">
       <p class="muted">${e.direction === 'out' ? `Sent to ${escapeText(e.address)} · approved by ${escapeText(e.approved_by)}` : `Reply from ${escapeText(e.address)}`} · ${escapeText((e.at ?? '').slice(0, 16).replace('T', ' '))}</p>
-      <strong>${escapeText(e.subject)}</strong><p class="email-text">${escapeText(e.body)}</p></li>`).join('')}</ul>` : ''}
+      <strong>${escapeText(e.subject)}</strong><p class="email-text">${escapeText(e.body)}</p>
+      ${e.offered?.times?.length ? `<p class="muted">Times offered: ${e.offered.times.map(t => t.ok ? escapeText(t.start.replace('T', ' '))
+        : `<s>${escapeText(t.quote)}</s> (${escapeText(t.problem)})`).join(' · ')}${e.meeting_pk ? ` · <button type="button" class="link" data-open-meeting="${e.meeting_pk}">book on the meeting</button>` : ''}</p>` : ''}</li>`).join('')}</ul>` : ''}
     ${thread.some(e => e.direction === 'out') ? `<div class="inline-row"><button type="button" id="co-replies">Check for replies</button><span class="muted" id="co-replies-status"></span></div>` : ''}
 
     <h4>Meetings</h4>

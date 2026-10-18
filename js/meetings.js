@@ -5,7 +5,7 @@
 const STATUS_LABELS = {planned: 'Draft ready', invite_sent: 'Waiting for reply', scheduled: 'Scheduled',
   held: 'Held', cancelled: 'Cancelled'};
 const REMINDER_ICONS = {follow_up: '✉️', needs_notes: '📝', upcoming: '📅', overdue: '⏰', due_soon: '⏳',
-  no_owner: '👤', pilot_ended: '🧪', decision: '⚖️', checkin: '📈', report: '📊'};
+  no_owner: '👤', pilot_ended: '🧪', decision: '⚖️', checkin: '📈', report: '📊', replied: '📨'};
 let contactTypes = [];
 fetch('/api/meetings/contact-types').then(r => r.json()).then(list => { contactTypes = list; }).catch(() => {});
 
@@ -144,8 +144,11 @@ function renderMeeting(m) {
   }
   if (m.status === 'invite_sent') {
     const followUp = `Dear ${m.supplier} team,\n\nI wanted to follow up on my note about an introductory call. Would any time next week suit you?\n\nKind regards,\n[Your name]`;
-    html += `<p>Sent ${escapeText(m.sent_at?.slice(0, 10))}. <strong>Follow up by ${escapeText(m.reply_due)}</strong> if there's no reply.</p>
-      <div class="inline-row"><a class="button" href="${escapeText(mailto(m.contact, `Re: ${plan.email_subject}`, followUp))}">Draft a follow-up in Outlook</a></div>`;
+    html += m.replies.length ? m.replies.map(replyHtml).join('')
+      : `<p>Sent ${escapeText(m.sent_at?.slice(0, 10))}. <strong>Follow up by ${escapeText(m.reply_due)}</strong> if there's no reply.</p>
+      <div class="inline-row"><button type="button" id="mt-replies">Check for replies</button>
+        <a class="button" href="${escapeText(mailto(m.contact, `Re: ${plan.email_subject}`, followUp))}">Draft a follow-up in Outlook</a>
+        <span class="muted" id="mt-replies-status"></span></div>`;
   }
   if (['planned', 'invite_sent', 'scheduled'].includes(m.status)) {
     html += `<h4>${m.status === 'scheduled' ? 'Change the time' : 'They replied: confirm the time'}</h4>
@@ -179,6 +182,22 @@ function renderMeeting(m) {
   wireMeeting(m);
 }
 
+// A supplier's reply, with the times it offers as buttons that fill in the booking form below.
+function replyHtml(r) {
+  const offered = r.offered ?? {times: [], vague: []};
+  const label = t => new Date(`${t.start}:00+04:00`).toLocaleString([], {weekday: 'short', day: 'numeric', month: 'short',
+    hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Dubai'});
+  return `<div class="reply-box"><p class="muted">Reply from ${escapeText(r.from)} · ${escapeText((r.at ?? '').slice(0, 16).replace('T', ' '))}</p>
+    <p class="email-text">${escapeText(r.body)}</p>
+    ${offered.times.length ? `<h5>Times offered</h5><div class="offered-times">${offered.times.map(t => t.ok
+      ? `<button type="button" class="offered" data-start="${escapeText(t.start)}" title="From: “${escapeText(t.quote)}”">${escapeText(label(t))}
+          ${t.timezone ? `<small>(${escapeText(t.original.slice(11))} ${escapeText(t.timezone)})</small>` : ''}${t.warning ? ` <small class="flag">${escapeText(t.warning)}</small>` : ''}</button>`
+      : `<span class="offered-bad" title="From: “${escapeText(t.quote)}”">${escapeText(t.quote)}: <span class="flag">${escapeText(t.problem)}</span></span>`).join('')}</div>
+      <p class="muted">Pick one to fill in the booking below, then book it. Read by ${escapeText(offered.generated_by)}; each time is checked against the email.</p>` : ''}
+    ${offered.vague.length ? `<p class="muted">Also suggested, needs an answer from you: ${escapeText(offered.vague.join('; '))}</p>` : ''}
+    ${!offered.times.length && !offered.vague.length ? '<p class="muted">No specific time found in this reply.</p>' : ''}</div>`;
+}
+
 function debriefHtml(m) {
   const d = m.debrief;
   return `<div class="debrief"><h4>Debrief <span class="status">DRAFT</span></h4>
@@ -210,6 +229,23 @@ function wireMeeting(m) {
     get('mt-outlook').onclick = event => { event.currentTarget.href = mailto(m.contact, get('mt-subject').value, get('mt-body').value); };
   }
   if (get('mt-sent')) get('mt-sent').onclick = () => act('sent', {}, get('mt-sent'));
+  if (get('mt-replies')) get('mt-replies').onclick = async () => {
+    get('mt-replies').disabled = true;
+    const updated = await postJson(`/api/meetings/${m.id}/check-replies`, {}, 'meeting-error');
+    if (updated) {
+      renderMeeting(updated);
+      if (!updated.new_replies && get('mt-replies-status')) get('mt-replies-status').textContent = 'No reply yet.';
+      loadMeetings();
+    } else get('mt-replies').disabled = false;
+  };
+  for (const pick of document.querySelectorAll('.offered')) {
+    pick.onclick = () => {
+      document.querySelectorAll('.offered').forEach(b => b.classList.toggle('picked', b === pick));
+      get('mt-start').value = pick.dataset.start;
+      get('mt-book').classList.add('primary');
+      get('mt-start').scrollIntoView({behavior: 'smooth', block: 'center'});
+    };
+  }
   if (get('mt-approve')) get('mt-approve').onchange = event => { get('mt-send').disabled = !event.target.checked; };
   if (get('mt-send')) get('mt-send').onclick = () => {
     get('mt-send').textContent = 'Sending…';

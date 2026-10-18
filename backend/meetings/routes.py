@@ -276,7 +276,15 @@ def reminders():
     with db.connect() as conn:
         for row in conn.execute("SELECT * FROM meetings WHERE status IN ('invite_sent', 'scheduled')"):
             ref = {"meeting_id": row["pk"], "submission_id": f"SUB-{row['submission_pk']:04d}"}
-            if row["status"] == "invite_sent" and row["reply_due"] and date.fromisoformat(row["reply_due"]) <= today:
+            reply = conn.execute("SELECT offered_json FROM emails WHERE meeting_pk = ? AND direction = 'in'"
+                                 " ORDER BY pk DESC LIMIT 1", (row["pk"],)).fetchone() if row["status"] == "invite_sent" else None
+            if reply:
+                usable = [t for t in (json.loads(reply["offered_json"] or "null") or {}).get("times", []) if t["ok"]]
+                items.append(ref | {"kind": "replied", "severity": "high",
+                                    "text": f"{row['supplier']} replied" + (f" with {len(usable)} possible "
+                                            f"{'time' if len(usable) == 1 else 'times'}: book one." if usable else
+                                            ": read it and agree a time."), "due": today.isoformat()})
+            elif row["status"] == "invite_sent" and row["reply_due"] and date.fromisoformat(row["reply_due"]) <= today:
                 items.append(ref | {"kind": "follow_up", "severity": "high",
                                     "text": f"No reply from {row['supplier']} since {row['sent_at'][:10]}. Send a polite follow-up.",
                                     "due": row["reply_due"]})
@@ -362,6 +370,10 @@ def get_meeting(conn, meeting_id: int) -> dict:
     meeting["proposed_slots"] = json.loads(meeting["proposed_slots"] or "[]")
     meeting["actions"] = [dict(a) for a in conn.execute(
         "SELECT * FROM meeting_actions WHERE meeting_pk = ? ORDER BY pk", (meeting_id,))]
+    meeting["replies"] = [{"id": r["pk"], "from": r["address"], "subject": r["subject"], "body": r["body"], "at": r["at"],
+                           "offered": json.loads(r["offered_json"] or "null")}
+                          for r in conn.execute("SELECT * FROM emails WHERE meeting_pk = ? AND direction = 'in' ORDER BY pk",
+                                                (meeting_id,))]
     return meeting
 
 

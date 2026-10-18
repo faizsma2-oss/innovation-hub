@@ -572,3 +572,13 @@ a.button:hover { background: var(--fill-strong); }
 .library-card h3 { margin-top: 6px; }
 .library-empty { grid-column: 1 / -1; text-align: center; padding: 30px 16px; }
 #library-count { margin: 6px 0 14px; }
+
+/* ── 24. Supplier replies and offered times ──────────────────────────────── */
+.reply-box { margin: 12px 0; padding: 14px 16px; border-radius: 16px; background: color-mix(in srgb, var(--good) 10%, transparent); }
+.reply-box p { margin: 0 0 6px; }
+.offered-times { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 8px; }
+.offered { font-size: 14px; }
+.offered.picked { background: var(--accent); color: #fff; }
+.offered small { opacity: 0.8; }
+.offered-bad { font-size: 13px; color: var(--muted); padding: 6px 0; }
+.reply-box .flag, .offered .flag { color: var(--warn); font-weight: 600; }
