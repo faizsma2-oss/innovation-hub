@@ -31,7 +31,7 @@ def test_each_visitor_has_a_private_copy_of_the_demo(public):
         alice_titles = [s["title"] for s in alice.get("/api/submissions").json()]
         bob_titles = [s["title"] for s in bob.get("/api/submissions").json()]
         assert "Alice's idea" in alice_titles and "Alice's idea" not in bob_titles
-        assert len(bob_titles) == 12                                  # Bob starts from the clean demo (3 + 6 examples)
+        assert len(bob_titles) == 12                                  # Bob starts from the clean demo (3 + 9 examples)
         assert bob.get(f"/api/submissions/{created['id']}").status_code == 404
         assert len(list((public / "sandboxes").glob("*.db"))) == 2
 
