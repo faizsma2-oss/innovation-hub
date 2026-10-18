@@ -333,6 +333,9 @@ class Turn:
         appears in what the employee wrote."""
         result = self.brain.step(text, self.draft, self.state["unknown"], self.state["asked"],
                                  self.state["technology_first"], self.meter)
+        self.apply(result, text)
+
+    def apply(self, result: dict, text: str | None):
         for field, value in result["extracted"].items():
             if (field in QUESTIONS and value and not self.draft.get(field)
                     and field not in self.state["asked"] and rules.grounded(value, text or "")):
@@ -369,10 +372,28 @@ class Turn:
             if injected:
                 self.state["notes"].append(f"The answer about {field.replace('_', ' ')} contained an instruction "
                                            "to the assistant, so it was not used as evidence")
+            self.state["pending_field"] = None
+            self.think(None)
+            return self.ask_next()
+        self.state["pending_field"] = None
+        # The brain plans the next question as if the answer were filed where asked (as it usually is).
+        result = self.brain.step(text, self.draft | {field: text[: FIELD_LIMITS[field]]}, self.state["unknown"],
+                                 self.state["asked"], self.state["technology_first"], self.meter)
+        elsewhere = refiled_fields(field, result["extracted"], text)
+        if elsewhere:
+            # The answer is about something else: file it there, keep what was there, leave the question open.
+            for other, value in elsewhere.items():
+                current = self.draft.get(other)
+                if not current:
+                    self.draft[other] = value[: FIELD_LIMITS[other]]
+                elif value.lower() not in current.lower():
+                    self.draft[other] = f"{current}; {value}"[: FIELD_LIMITS[other]]
+            self.state["notes"].append(
+                f"The answer to the question about {LABEL_TEXT[field]} was about "
+                f"{' and '.join(LABEL_TEXT[f] for f in elsewhere)}, so it was filed there: “{text[:200]}”")
         else:
             self.draft[field] = text[: FIELD_LIMITS[field]]  # their own words, kept as written
-        self.state["pending_field"] = None
-        self.think(None if rules.is_dont_know(text) or injected else text)
+        self.apply(result, text)
         self.ask_next()
 
     def run_checks(self, prefix: str = ""):
@@ -567,6 +588,25 @@ class Turn:
                 "outcome": self.outcome, "submission_id": self.submission_id,
                 "can_submit": self.stage in SUBMITTABLE,
                 "review_requested": self.state["innovation_track"] == "employee_requested"}
+
+
+LABEL_TEXT = {"current_process": "what happens today", "frequency": "how often", "people_affected": "who is affected",
+              "impact": "the impact", "tried_already": "what was already tried"}
+REFILE_COVERAGE = 0.6
+
+
+def refiled_fields(asked: str, extracted: dict, answer: str) -> dict:
+    """When an answer doesn't address the question asked but clearly describes other fields, those fields.
+    "Clearly": the extracted words (checked against the answer) cover most of the answer's meaningful words."""
+    if not answer or extracted.get(asked):
+        return {}
+    others = {f: v for f, v in extracted.items() if f != asked and f in QUESTIONS and v and rules.grounded(v, answer)}
+    if not others:
+        return {}
+    words = lambda t: set(search.meaningful(t).split())
+    said = words(answer)
+    covered = set().union(*(words(v) for v in others.values())) & said
+    return others if said and len(covered) / len(said) >= REFILE_COVERAGE else {}
 
 
 def make_title(text: str) -> str:
