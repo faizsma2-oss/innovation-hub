@@ -99,10 +99,11 @@ def test_cannot_select_before_options_exist(client):
 
 # ── Claude researcher: checked like every AI answer ──────────────────────────
 
-def claude_option(option_id, title, values, summary="An approach."):
+def claude_option(option_id, title, values, summary="An approach.", tools=()):
     return {"id": option_id, "title": title, "summary": summary, "how_it_helps": "It helps.",
             "scores": {key: {"value": value, "reason": "Because."} for key, value in zip(CRITERIA, values)},
-            "pros": ["A pro"], "cons": ["A con"], "assumptions": ["An assumption"], "open_questions": ["A question?"]}
+            "pros": ["A pro"], "cons": ["A con"], "assumptions": ["An assumption"], "open_questions": ["A question?"],
+            "uses_existing_tools": list(tools)}
 
 
 class FakeClaude:
@@ -134,7 +135,7 @@ def test_claude_order_is_ignored_and_ranking_is_recalculated(client, use_claude)
         claude_option("A", "Weak option listed first", [1, 1, 1, 1, 1, 1]),
         claude_option("B", "Strong option", [5, 4, 4, 4, 4, 3]),
         claude_option("C", "Middle option", [3, 3, 3, 3, 3, 3])]})
-    options = propose(client, accepted(client)).json()["solutions"]["options"]
+    options = [o for o in propose(client, accepted(client)).json()["solutions"]["options"] if not o.get("added_by_rules")]
     assert [o["title"] for o in options] == ["Strong option", "Middle option", "Weak option listed first"]
     assert options[0]["usefulness"] == usefulness(options[0]["scores"])
 
@@ -166,3 +167,48 @@ def test_research_prompt_forbids_vendor_names_and_invented_numbers(client, use_c
     system = fake.requests[0]["system"][0]["text"]
     assert "not vendors, products or brand names" in system
     assert "Never invent numbers" in system
+
+
+# ── Tools Khazna already licenses ────────────────────────────────────────────
+
+def test_scripted_options_include_one_built_on_licensed_tools(client):
+    options = propose(client, accepted(client)).json()["solutions"]["options"]
+    built = [o for o in options if o["uses_existing_tools"]]
+    assert len(built) == 1 and not built[0].get("added_by_rules")
+    assert set(built[0]["uses_existing_tools"]) <= {t["name"] for t in client.get("/api/research/licensed-tools").json()}
+
+
+def test_claude_gets_the_list_and_unknown_tools_are_removed(client, use_claude):
+    fake = use_claude({"comparison": "x", "options": [
+        claude_option("A", "Baseline", [2, 5, 5, 5, 5, 3]),
+        claude_option("B", "Flows and dashboards", [4, 4, 4, 3, 4, 3], tools=["power automate", "Power BI", "Tableau"]),
+        claude_option("C", "New tool", [5, 2, 2, 3, 3, 4])]})
+    options = propose(client, accepted(client)).json()["solutions"]["options"]
+    sent = json.loads(fake.requests[0]["messages"][0]["content"][0]["text"]
+                      if isinstance(fake.requests[0]["messages"][0]["content"], list) else fake.requests[0]["messages"][0]["content"])
+    assert "Power Automate" in {t["name"] for t in sent["licensed_tools"]}
+    flows = next(o for o in options if o["title"] == "Flows and dashboards")
+    assert flows["uses_existing_tools"] == ["Power Automate", "Power BI"]          # Tableau isn't licensed
+    assert len(options) == 3 and not any(o.get("added_by_rules") for o in options)
+
+
+def test_option_is_added_when_claude_leaves_it_out_without_changing_the_ranking(client, use_claude):
+    use_claude({"comparison": "x", "options": [
+        claude_option("A", "Baseline", [2, 5, 5, 5, 5, 3]),
+        claude_option("B", "New tool", [5, 2, 2, 3, 3, 4]),
+        claude_option("C", "Outsource", [3, 3, 2, 3, 2, 3])]})
+    options = propose(client, accepted(client)).json()["solutions"]["options"]
+    added = next(o for o in options if o.get("added_by_rules"))
+    assert added["id"] == "D" and added["uses_existing_tools"]
+    assert [o["rank"] for o in options] == [1, 2, 3, 4]
+    assert all(o["usefulness"] == usefulness(o["scores"]) for o in options)    # no bonus points
+
+
+def test_team_can_edit_the_licensed_tools_list(client):
+    tools = [{"name": "Power BI", "good_for": "Dashboards that refresh themselves", "status": "confirmed"},
+             {"name": "ServiceNow", "good_for": "IT and facilities tickets and approvals", "status": "assumed"}]
+    assert client.put("/api/research/licensed-tools", json={"tools": tools + tools[:1]}).status_code == 422
+    saved = client.put("/api/research/licensed-tools", json={"tools": tools}).json()
+    assert [t["name"] for t in saved] == ["Power BI", "ServiceNow"] and saved[0]["keywords"]   # keeps built-in keywords
+    built = next(o for o in propose(client, accepted(client)).json()["solutions"]["options"] if o["uses_existing_tools"])
+    assert set(built["uses_existing_tools"]) <= {"Power BI", "ServiceNow"}

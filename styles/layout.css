@@ -533,3 +533,11 @@ a.button:hover { background: var(--fill-strong); }
 .copilot-box pre { max-height: 320px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
 .timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 13px; }
 #company-body .notice { margin: 12px 0 18px; max-width: none; text-align: left; }
+
+/* ── 20. Tools Khazna already licenses ───────────────────────────────────── */
+.existing-tools { margin: 10px 0 0; font-size: 14px; }
+.licensed-tools .tool-row { margin-bottom: 6px; }
+.licensed-tools .lt-name { flex: 0 0 180px; }
+.licensed-tools .lt-good { flex: 1; }
+.licensed-tools .lt-status { flex: 0 0 120px; }
+@media (max-width: 700px) { .licensed-tools .lt-name, .licensed-tools .lt-status { flex: 1 1 100%; } }

@@ -3,6 +3,56 @@
 
 let researchCriteria = [];
 fetch('/api/research/criteria').then(reply => reply.json()).then(list => { researchCriteria = list; }).catch(() => {});
+let licensedTools = [];   // tools Khazna already licenses; one option is always built on them
+const loadLicensedTools = () => fetch('/api/research/licensed-tools').then(r => r.json()).then(list => { licensedTools = list; }).catch(() => {});
+loadLicensedTools();
+
+function licensedToolsHtml() {
+  const confirmed = licensedTools.filter(t => t.status === 'confirmed').length;
+  const row = t => `<div class="inline-row tool-row"><input class="lt-name" value="${escapeText(t.name)}" placeholder="Tool" maxlength="80" aria-label="Tool">
+    <input class="lt-good" value="${escapeText(t.good_for)}" placeholder="What it's good for" maxlength="300" aria-label="What it's good for">
+    <select class="lt-status" aria-label="Licence">${['assumed', 'confirmed'].map(s => `<option ${s === t.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+    <button type="button" class="link lt-remove">Remove</button></div>`;
+  return `<details class="ask-again licensed-tools"><summary>Tools Khazna already licenses · ${licensedTools.length} listed, ${confirmed} confirmed by IT</summary>
+    <p class="muted">One option is always built on these, so the team checks what it already pays for before buying anything new.
+      "Assumed" means typical for a Microsoft 365 company; ask IT to confirm.</p>
+    <div id="lt-rows">${licensedTools.map(row).join('')}</div>
+    <div class="inline-row"><button type="button" id="lt-add">Add a tool</button><button type="button" class="primary" id="lt-save">Save list</button>
+      <span class="muted" id="lt-status"></span></div></details>`;
+}
+
+function wireLicensedTools() {
+  if (!get('lt-save')) return;
+  const bindRemove = () => document.querySelectorAll('.lt-remove').forEach(b => { b.onclick = () => b.closest('.tool-row').remove(); });
+  bindRemove();
+  get('lt-add').onclick = () => {
+    get('lt-rows').insertAdjacentHTML('beforeend', `<div class="inline-row tool-row"><input class="lt-name" placeholder="Tool" maxlength="80" aria-label="Tool">
+      <input class="lt-good" placeholder="What it's good for" maxlength="300" aria-label="What it's good for">
+      <select class="lt-status" aria-label="Licence"><option>assumed</option><option>confirmed</option></select>
+      <button type="button" class="link lt-remove">Remove</button></div>`);
+    bindRemove();
+  };
+  get('lt-save').onclick = async () => {
+    const tools = [...document.querySelectorAll('.tool-row')].map(r => ({name: r.querySelector('.lt-name').value.trim(),
+      good_for: r.querySelector('.lt-good').value.trim(), status: r.querySelector('.lt-status').value})).filter(t => t.name);
+    const response = await fetch('/api/research/licensed-tools', {method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tools})});
+    const reply = await response.json();
+    if (!response.ok) { get('lt-status').textContent = Array.isArray(reply.detail) ? reply.detail.map(p => p.msg).join('; ') : reply.detail; return; }
+    licensedTools = reply;
+    get('lt-status').textContent = 'Saved. It applies the next time options are prepared.';
+  };
+}
+
+function existingToolsBadge(option) {
+  if (!option.uses_existing_tools?.length) return '';
+  const status = name => licensedTools.find(t => t.name === name)?.status ?? 'assumed';
+  const unconfirmed = option.uses_existing_tools.filter(name => status(name) !== 'confirmed');
+  return `<p class="existing-tools"><span class="chip chip-rec-accept">Uses tools we already license</span>
+    ${option.uses_existing_tools.map(name => `<strong>${escapeText(name)}</strong>`).join(', ')}
+    ${unconfirmed.length ? `<span class="muted"> · ${escapeText(unconfirmed.join(', '))} assumed, confirm with IT</span>` : '<span class="muted"> · confirmed by IT</span>'}
+    ${option.added_by_rules ? '<br><span class="muted">Added by the rules: the Research AI didn\'t include an option like this.</span>' : ''}</p>`;
+}
 
 function solutionsHtml(record) {
   if (['Research', 'Pilot planning', 'Pilot running', 'Scaling', 'Rolling out', 'In operation', 'Stopped'].includes(record.status)) return researchHtml(record);
@@ -18,6 +68,7 @@ function solutionsHtml(record) {
         <button class="primary" id="propose-button">Prepare solution options</button>
         <p id="propose-error" class="error-text" role="alert"></p>
       </div>
+      ${licensedToolsHtml()}
     </section>`;
   }
   return `<section class="solutions">
@@ -33,6 +84,7 @@ function solutionsHtml(record) {
       <textarea id="feedback-text" rows="2" maxlength="1000"></textarea>
       <button type="button" id="ask-again-button">Ask again</button>
     </details>
+    ${licensedToolsHtml()}
     <p id="propose-error" class="error-text" role="alert"></p>
   </section>`;
 }
@@ -45,6 +97,7 @@ function optionCard(option) {
       <span class="usefulness" title="Usefulness 0–100, calculated from the criteria scores">${option.usefulness}</span>
     </div>
     <div class="meter"><span style="width:${option.usefulness}%"></span></div>
+    ${existingToolsBadge(option)}
     <p>${escapeText(option.summary)}</p>
     <p class="muted">${escapeText(option.how_it_helps)}</p>
     <div class="pros-cons">
@@ -118,6 +171,7 @@ function wireResearch(record) {
   wireEvaluation(record);
   wirePilot(record);
   wireScale(record);      // js/scale.js
+  wireLicensedTools();
   if (get('propose-button')) get('propose-button').onclick = () => proposeOptions(record.id);
   if (get('ask-again-button')) get('ask-again-button').onclick = () => proposeOptions(record.id, get('feedback-text').value);
   for (const form of document.querySelectorAll('.select-form')) {

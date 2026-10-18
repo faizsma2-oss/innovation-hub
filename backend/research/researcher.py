@@ -21,6 +21,7 @@ import anthropic
 
 from .. import llm
 from ..intake import rules
+from . import licensed
 
 VERSION_MOCK = "research-mock-v1"
 VERSION_CLAUDE = "research-claude-v1"
@@ -78,8 +79,10 @@ class MockResearcher:
     name = "research-mock"
     version = VERSION_MOCK
 
-    def options(self, record: dict, feedback: str | None = None, meter: list | None = None) -> dict:
+    def options(self, record: dict, feedback: str | None = None, meter: list | None = None,
+                licensed_tools: list | None = None) -> dict:
         text = " ".join(str(value) for value in problem_facts(record).values() if value)
+        tools = licensed.best_matches(text, licensed_tools or licensed.DEFAULT_TOOLS)
         options = [
             {"id": "A", "title": "Improve the current process",
              "summary": "Standardise and simplify today's steps (clear owner, checklist, one template) without new tools.",
@@ -89,9 +92,10 @@ class MockResearcher:
              "cons": ["Leaves the manual effort in place", "Relies on people following the new routine"],
              "assumptions": ["Much of the problem comes from inconsistency, not volume"],
              "open_questions": ["Which steps cause the most rework today?"]},
-            {"id": "B", "title": "Automate with tools already in use",
-             "summary": "Use features of existing systems (exports, scheduled jobs, scripts) to remove repeated manual steps.",
-             "how_it_helps": "Cuts the repeated work while staying inside approved systems.",
+            {"id": "B", "title": "Automate with tools Khazna already licenses",
+             "summary": f"Use {' and '.join(tools)}, which Khazna already pays for, to remove repeated manual steps.",
+             "how_it_helps": "Cuts the repeated work while staying inside approved, supported systems.",
+             "uses_existing_tools": tools,
              "scores": _score(4, 4, 4, 3, 4, 3, {}),
              "pros": ["Reuses approved, supported systems", "Removes repeated manual steps"],
              "cons": ["Depends on what the existing systems allow", "Needs someone to build and maintain it"],
@@ -145,6 +149,10 @@ Rules:
 - Propose 3 to 5 options that are genuinely different from each other. Always include one simple, low-cost \
 option that improves the current process without new technology, as a baseline.
 - Describe approaches, not vendors, products or brand names. Supplier research happens after the team chooses.
+- Exception: "licensed_tools" lists software the company ALREADY pays for. At least one option must be built \
+mainly on those tools, matched to what each is good for; name the ones it uses in "uses_existing_tools", \
+spelled exactly as listed. Leave "uses_existing_tools" empty for every other option. Never name any other product. \
+Score it honestly: it competes on the same criteria as the others.
 - Use only the facts given. Never invent numbers, costs, durations, percentages or results. Describe cost and \
 time in relative words (low, moderate, high; weeks, months).
 - Score every option on every criterion from 1 to 5, where 5 is always best, with a one-sentence reason:
@@ -177,8 +185,10 @@ OPTION_SCHEMA = {
         "cons": {"type": "array", "items": {"type": "string"}},
         "assumptions": {"type": "array", "items": {"type": "string"}},
         "open_questions": {"type": "array", "items": {"type": "string"}},
+        "uses_existing_tools": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["id", "title", "summary", "how_it_helps", "scores", "pros", "cons", "assumptions", "open_questions"],
+    "required": ["id", "title", "summary", "how_it_helps", "scores", "pros", "cons", "assumptions", "open_questions",
+                 "uses_existing_tools"],
     "additionalProperties": False,
 }
 OPTIONS_SCHEMA = {
@@ -211,9 +221,10 @@ class ClaudeResearcher:
         # Comparing options takes longer than a chat turn, so a longer timeout.
         self.client = client or anthropic.Anthropic(timeout=180.0, max_retries=1)
 
-    def options(self, record: dict, feedback: str | None = None, meter: list | None = None) -> dict:
+    def options(self, record: dict, feedback: str | None = None, meter: list | None = None,
+                licensed_tools: list | None = None) -> dict:
         facts = problem_facts(record)
-        request = {"request": facts}
+        request = {"request": facts, "licensed_tools": licensed.for_ai(licensed_tools or [])}
         if feedback:
             request["team_feedback_on_previous_options"] = feedback
         try:
@@ -223,7 +234,7 @@ class ClaudeResearcher:
         except (llm.LLMError, KeyError, TypeError, ValueError) as error:
             if meter is not None:
                 meter.append(llm.fallback_entry(self.fallback.name, self.fallback.version, error))
-            return self.fallback.options(record, feedback)
+            return self.fallback.options(record, feedback, licensed_tools=licensed_tools)
         return {"options": rank(options), "comparison": str(data["comparison"]).strip()[:1200],
                 "generated_by": f"{self.name} {self.version}"}
 
@@ -258,6 +269,7 @@ class ClaudeResearcher:
                            for key, s in option["scores"].items()},
                 "pros": clean(option["pros"]), "cons": clean(option["cons"]),
                 "assumptions": clean(option["assumptions"]), "open_questions": clean(option["open_questions"]),
+                "uses_existing_tools": [str(name).strip()[:80] for name in (option.get("uses_existing_tools") or [])[:5]],
             }
             if not option["pros"] or not option["cons"]:
                 raise ValueError(f"option {option['id']} needs both pros and cons")

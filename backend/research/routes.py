@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field, model_validator
 from .. import db
 from ..models import SubmissionOut
 from ..review.routes import DEMO_REVIEWER, load
-from . import suppliers
-from .researcher import CRITERIA, get_researcher
+from . import licensed, suppliers
+from .researcher import CRITERIA, get_researcher, problem_facts, rank
 
 router = APIRouter(tags=["research"])
 
@@ -28,6 +28,36 @@ class OptionsIn(BaseModel):
 class SelectIn(BaseModel):
     option_id: str = Field(min_length=1, max_length=2)
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class ToolIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    good_for: str = Field(min_length=3, max_length=300)
+    status: Literal["assumed", "confirmed"] = "assumed"
+
+
+class ToolsIn(BaseModel):
+    tools: list[ToolIn] = Field(max_length=30)
+
+
+@router.get("/api/research/licensed-tools")
+def licensed_tools():
+    with db.connect() as conn:
+        return licensed.load(conn)
+
+
+@router.put("/api/research/licensed-tools")
+def save_licensed_tools(body: ToolsIn):
+    with db.connect() as conn:
+        keywords = {t["name"].lower(): t.get("keywords") for t in licensed.load(conn)}
+        names = [t.name.strip().lower() for t in body.tools]
+        if len(set(names)) != len(names):
+            raise HTTPException(422, "Each tool should be listed once")
+        tools = [{"name": t.name.strip(), "good_for": t.good_for.strip(), "status": t.status,
+                  **({"keywords": keywords[t.name.strip().lower()]} if keywords.get(t.name.strip().lower()) else {})}
+                 for t in body.tools]
+        licensed.save(conn, tools)
+        return tools
 
 
 @router.get("/api/research/criteria")
@@ -42,7 +72,12 @@ def propose_solutions(submission_id: str, body: OptionsIn):
         if record["status"] != "Accepted":
             raise HTTPException(409, "Solution options are prepared only for accepted requests")
         researcher, meter = get_researcher(), []
-        result = researcher.options(record, body.feedback, meter)
+        tools = licensed.load(conn)
+        result = researcher.options(record, body.feedback, meter, licensed_tools=tools)
+        # Rule, in code: one option is always built on tools Khazna already licenses.
+        text = " ".join(str(value) for value in problem_facts(record).values() if value)
+        result["options"] = rank(licensed.guarantee(result["options"], tools, text))
+        result["licensed_tools"] = licensed.for_ai(tools)
         previous = record.get("solutions") or {}
         solutions = result | {
             "status": "PROPOSED",
