@@ -218,3 +218,39 @@ def test_business_case_narrative_cannot_add_figures(client, monkeypatch):
     narrative = post(client, sid, "scale/business-case", **CASE).json()["research"]["scale"]["business_case"]["narrative"]
     assert "2,000,000" not in narrative["summary"]
     assert narrative["assumptions"] == ["Benefit holds at 3 sites"]
+
+
+# ── Scenarios: low / expected / high, and break-even ─────────────────────────
+
+def test_three_scenarios_and_break_even_are_calculated(client):
+    sid = scaling(client)
+    calc = post(client, sid, "scale/business-case", **CASE).json()["research"]["scale"]["business_case"]["calc"]
+    benefit, low, expected, high = calc["annual_benefit"], *(calc["scenarios"][k] for k in ("low", "expected", "high"))
+    assert expected["annual_benefit"] == benefit and expected["payback_months"] == calc["payback_months"]   # unchanged
+    assert low["annual_benefit"] == pytest.approx(benefit * 0.5)
+    assert low["one_off_total"] == pytest.approx(50000 * 1.2) and low["yearly_cost_total"] == pytest.approx(12000 * 1.2)
+    assert high["annual_benefit"] == pytest.approx(benefit * 1.2)
+    assert low["payback_months"] > expected["payback_months"] > high["payback_months"]
+    assert calc["break_even_share"] == pytest.approx(round((12000 + 50000 / 3) / benefit, 2))
+    # At exactly the break-even share, three years of net benefit cover the one-off cost.
+    share = (12000 + 50000 / 3) / benefit
+    assert 3 * (share * benefit - 12000) - 50000 == pytest.approx(0, abs=1e-6)
+
+
+def test_team_can_set_its_own_scenarios_within_limits(client):
+    sid = scaling(client)
+    mine = {"low": {"benefit": 0.3, "cost": 1.5}, "expected": {"benefit": 0.8, "cost": 1.1}, "high": {"benefit": 1, "cost": 1}}
+    calc = post(client, sid, "scale/business-case", **CASE, scenarios=mine).json()["research"]["scale"]["business_case"]["calc"]
+    assert calc["scenarios"]["low"]["benefit_factor"] == 0.3 and calc["scenarios"]["expected"]["cost_factor"] == 1.1
+    assert post(client, sid, "scale/business-case", **CASE,
+                scenarios=mine | {"low": {"benefit": 0.05, "cost": 1}}).status_code == 422          # below 10%
+    assert post(client, sid, "scale/business-case", **CASE,
+                scenarios=mine | {"low": {"benefit": 0.9, "cost": 1}}).status_code == 422           # out of order
+
+
+def test_a_low_scenario_that_never_pays_back(client):
+    sid = scaling(client)
+    pricey = CASE | {"yearly": [{"item": "Licences", "amount": 150000}]}
+    calc = post(client, sid, "scale/business-case", **pricey).json()["research"]["scale"]["business_case"]["calc"]
+    assert calc["scenarios"]["low"]["payback_months"] is None and not calc["scenarios"]["low"]["pays_back_in_3_years"]
+    assert calc["scenarios"]["expected"]["pays_back_in_3_years"]

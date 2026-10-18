@@ -550,3 +550,17 @@ a.button:hover { background: var(--fill-strong); }
 .import-table { width: 100%; table-layout: auto; }
 .import-table th, .import-table td { white-space: nowrap; width: auto; }
 .import-table td:nth-child(3) { white-space: normal; min-width: 180px; }
+
+/* ── 22. Business case scenarios ─────────────────────────────────────────── */
+.scenarios tr.expected td { font-weight: 600; }
+.scenarios .flag { color: var(--warn); font-weight: 600; }
+.break-even { margin: 10px 0 16px; padding: 12px 14px; border-radius: 14px; background: var(--fill); font-size: 14px; }
+.sc-benefit, .sc-cost { width: 100%; max-width: 110px; }
+.scenarios { width: 100%; table-layout: auto; }
+.scenarios th, .scenarios td { width: auto; white-space: nowrap; }
+.scenarios td:nth-child(2) { white-space: normal; min-width: 200px; }
+.scores.scenarios td:nth-child(n), .scores.import-table td:nth-child(n) { width: auto; }
+.scores.scenarios td:nth-child(2) { min-width: 200px; white-space: normal; }
+.scores.scenarios td:nth-child(3) { white-space: nowrap; }
+.scores.import-table td:nth-child(2) { white-space: nowrap; color: var(--text); font-weight: 400; }
+.scores.import-table td:nth-child(3) { min-width: 180px; color: var(--text); font-weight: 400; white-space: normal; }

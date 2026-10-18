@@ -5,6 +5,8 @@ const CASE_STYLE = {'AWAITING DECISION': 'rec-ask', APPROVED: 'rec-accept', REJE
 const BENEFIT_STYLE = {held: 'rec-accept', 'partly held': 'rec-ask', eroded: 'rec-decline'};
 const money = (value, currency) => value == null ? '–' : `${Math.round(value).toLocaleString()} ${currency}`;
 let scaleImprovements = {};   // submission id → measured improvements, for the business case form
+const SCENARIO_DEFAULTS = {low: {benefit: 0.5, cost: 1.2}, expected: {benefit: 1, cost: 1}, high: {benefit: 1.2, cost: 1}};
+const SCENARIO_TEXT = {low: 'Low', expected: 'Expected', high: 'High'};
 
 function scaleHtml(record) {
   if (!['Scaling', 'Rolling out', 'In operation', 'Stopped'].includes(record.status)) return '';
@@ -43,6 +45,13 @@ function caseFormHtml(record) {
       <button type="button" class="link" data-add-cost="one_off">+ Add a one-off cost</button>
       <h4>Yearly costs</h4><div id="yearly-rows">${cost('yearly', old?.yearly)}</div>
       <button type="button" class="link" data-add-cost="yearly">+ Add a yearly cost</button>
+      <details class="ask-again"><summary>Scenarios: how much of the pilot's saving holds at scale</summary>
+        <p class="muted">Pilots usually do better than the rollout. Adjust if this rollout is riskier or safer than usual.</p>
+        <table class="scores"><thead><tr><th></th><th>Saving that holds (%)</th><th>Costs vs quotes (%)</th></tr></thead><tbody>
+        ${Object.keys(SCENARIO_DEFAULTS).map(k => { const v = (old?.scenarios ?? SCENARIO_DEFAULTS)[k]; return `<tr><td>${SCENARIO_TEXT[k]}</td>
+          <td><input type="number" class="sc-benefit" data-scenario="${k}" min="10" max="200" step="5" value="${Math.round(v.benefit * 100)}"></td>
+          <td><input type="number" class="sc-cost" data-scenario="${k}" min="50" max="300" step="5" value="${Math.round(v.cost * 100)}"></td></tr>`; }).join('')}
+        </tbody></table></details>
       <div class="inline-row"><button type="submit" class="primary" ${lines.length ? '' : 'disabled'}>Calculate business case</button></div>
     </form>`;
 }
@@ -58,6 +67,7 @@ function caseHtml(record, c) {
       <div><strong>${calc.payback_months == null ? 'Never' : `${calc.payback_months} months`}</strong><span>Payback</span></div>
       <div><strong>${money(calc.three_year_net, cur)}</strong><span>Net over 3 years</span></div>
     </div>
+    ${calc.scenarios ? scenariosHtml(calc) : ''}
     <table class="scores"><thead><tr><th>Benefit line</th><th>Calculation</th><th>Per year</th></tr></thead><tbody>
       ${calc.benefit_lines.map(l => `<tr><td>${escapeText(l.metric)}</td>
         <td class="muted">${l.gain_per_period} ${escapeText(l.unit)} × ${l.periods_per_year} × ${l.multiplier} × ${l.value_per_unit} ${cur}</td>
@@ -72,6 +82,22 @@ function caseHtml(record, c) {
         <div class="inline-row"><button type="submit" class="primary">Record decision</button>
           <button type="button" id="redo-case">Change the figures</button></div></form>`
       : c.decision ? `<p class="decided"><strong>${c.status === 'APPROVED' ? 'Approved' : 'Rejected'}</strong> by ${escapeText(c.decision.by)} · “${escapeText(c.decision.reason)}”</p>` : ''}`;
+}
+
+function scenariosHtml(calc) {
+  const cur = calc.currency;
+  const pct = v => `${Math.round(v * 100)}%`;
+  return `<table class="scores scenarios"><thead><tr><th>Scenario</th><th>Assumes</th><th>Benefit per year</th><th>Payback</th><th>Net over 3 years</th></tr></thead><tbody>
+    ${['low', 'expected', 'high'].map(k => { const s = calc.scenarios[k]; return `<tr class="${k}">
+      <td><strong>${SCENARIO_TEXT[k]}</strong></td>
+      <td class="muted">${pct(s.benefit_factor)} of the pilot's saving${s.cost_factor !== 1 ? `, costs ${s.cost_factor > 1 ? '+' : ''}${Math.round((s.cost_factor - 1) * 100)}%` : ''}</td>
+      <td>${money(s.annual_benefit, cur)}</td>
+      <td>${s.payback_months == null ? '<span class="flag">Never</span>' : `${s.payback_months} months`}</td>
+      <td class="${s.three_year_net < 0 ? 'flag' : ''}">${money(s.three_year_net, cur)}</td></tr>`; }).join('')}</tbody></table>
+    ${calc.break_even_share != null ? `<p class="break-even">${calc.break_even_share <= 1
+      ? `<strong>Break-even:</strong> it still pays back within 3 years as long as at least <strong>${pct(calc.break_even_share)}</strong> of the pilot's saving holds (costs as quoted).`
+      : `<strong>Break-even:</strong> even the full pilot saving doesn't pay back within 3 years; it would need ${pct(calc.break_even_share)} of it.`}
+      Check-ins after rollout show which scenario reality follows.</p>` : ''}`;
 }
 
 // 2. Rollout plan and the handover gate: a named business owner and a finished checklist.
@@ -172,7 +198,10 @@ function wireScale(record) {
       .map(row => ({metric_key: row.dataset.key, value_per_unit: Number(row.querySelector('.b-value').value),
         periods_per_year: Number(row.querySelector('.b-periods').value), multiplier: Number(row.querySelector('.b-mult').value)}));
     if (!benefits.length) { get('scale-error').textContent = 'Put a value on at least one improved metric.'; return; }
-    send('scale/business-case', {currency: get('case-currency').value, one_off: costs('one_off'), yearly: costs('yearly'), benefits},
+    const scenarios = Object.fromEntries(Object.keys(SCENARIO_DEFAULTS).map(k => [k, {
+      benefit: Number(document.querySelector(`.sc-benefit[data-scenario=${k}]`).value) / 100,
+      cost: Number(document.querySelector(`.sc-cost[data-scenario=${k}]`).value) / 100}]));
+    send('scale/business-case', {currency: get('case-currency').value, one_off: costs('one_off'), yearly: costs('yearly'), benefits, scenarios},
       submitButton(event));   // submitButton: js/meetings.js
   };
   if (get('redo-case')) get('redo-case').onclick = () => {

@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .. import db
 from ..models import SubmissionOut
@@ -39,11 +39,29 @@ class BenefitIn(BaseModel):
     multiplier: float = Field(gt=0, le=1000)      # e.g. number of sites or teams it will reach
 
 
+class ScenarioIn(BaseModel):
+    benefit: float = Field(ge=0.1, le=2.0)    # share of the pilot's saving that holds (0.5 = half)
+    cost: float = Field(ge=0.5, le=3.0)       # costs as a multiple of the quotes (1.2 = 20% over)
+
+
+class ScenariosIn(BaseModel):
+    low: ScenarioIn
+    expected: ScenarioIn
+    high: ScenarioIn
+
+    @model_validator(mode="after")
+    def in_order(self):
+        if not self.low.benefit <= self.expected.benefit <= self.high.benefit:
+            raise ValueError("Low, expected and high should be in order: low ≤ expected ≤ high saving")
+        return self
+
+
 class CaseIn(BaseModel):
     currency: CURRENCIES = "AED"
     one_off: list[CostIn] = Field(default_factory=list, max_length=20)
     yearly: list[CostIn] = Field(default_factory=list, max_length=20)
     benefits: list[BenefitIn] = Field(min_length=1, max_length=10)
+    scenarios: ScenariosIn | None = None      # None = the standard 50% / 100% / 120%
 
 
 class DecisionIn(BaseModel):
