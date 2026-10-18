@@ -32,8 +32,27 @@ function switchView(view) {
     get(`${name}-nav`).setAttribute('aria-pressed', String(name === view));
   }
 }
-get('employee-nav').onclick = () => switchView('employee');
-get('reviewer-nav').onclick = () => switchView('reviewer');
+// Every place has its own link: #my-requests, #library, and the Team tabs #today, #requests, #portfolio,
+// #suppliers, #insights. The browser's Back button and shared links work.
+const TEAM_TABS = ['today', 'requests', 'portfolio', 'suppliers', 'insights'];
+let currentTab = 'today';
+function showTab(tab) {
+  currentTab = TEAM_TABS.includes(tab) ? tab : 'today';
+  for (const panel of document.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== currentTab;
+  for (const link of document.querySelectorAll('#team-tabs a')) {
+    if (link.dataset.tab === currentTab) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  }
+}
+function go(place) {
+  const view = TEAM_TABS.includes(place) ? 'reviewer' : place === 'library' ? 'library' : 'employee';
+  switchView(view);
+  if (view === 'reviewer') showTab(place);
+  if (view === 'library' && typeof loadLibrary === 'function') loadLibrary();
+}
+function route() { go(location.hash.slice(1) || 'my-requests'); }
+window.addEventListener('hashchange', () => { route(); window.scrollTo({top: 0}); });
+get('employee-nav').onclick = () => { location.hash = 'my-requests'; };
+get('reviewer-nav').onclick = () => { location.hash = currentTab; };
 
 // 3. Ask the server for the data. fetch() sends a request and waits for the reply.
 async function loadSubmissions() {
@@ -194,7 +213,8 @@ get('problem-form').onsubmit = async event => {
     }
     form.reset();
     result.textContent = `Saved as ${reply.id} and sent to ${ROUTE_LABELS[reply.route] ?? 'review'}.`;
-    await loadSubmissions();
+    await route();
+loadSubmissions();
   } catch (error) {
     result.textContent = `Not saved: could not reach the server. ${error.message}`;
   }

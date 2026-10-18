@@ -625,3 +625,80 @@ a.button:hover { background: var(--fill-strong); }
 [dir=auto] { unicode-bidi: plaintext; }
 #chat-form textarea { flex-basis: 100%; }
 #chat-form #chat-send { margin-left: auto; }
+
+/* ── 30. Minimal pass: calm, flat, easy to scan (overrides the earlier sections) ──────────────────── */
+body { font-size: 17px; letter-spacing: -0.012em; }
+h1 { background: none; color: var(--text); -webkit-background-clip: initial; background-clip: initial;
+  font-weight: 600; font-size: clamp(34px, 5vw, 56px); line-height: 1.07; letter-spacing: -0.03em; margin: 0 0 14px; }
+h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.eyebrow { display: none; }
+.hero { padding: 64px 0 28px; animation: none; }
+.intro { font-size: 19px; color: var(--muted); margin-bottom: 28px; }
+.primary { background: var(--accent); box-shadow: none; padding: 11px 22px; font-weight: 500; }
+.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); box-shadow: none; }
+button { transition: background 0.15s, opacity 0.15s; }
+button:active { transform: none; }
+
+/* Top bar: brand, three places as plain links, a quiet demo label */
+.topbar-inner { max-width: 1024px; padding: 0 22px; height: 52px; }
+.brand { font-size: 17px; font-weight: 600; gap: 8px; }
+.brand-orb { width: 14px; height: 14px; background: var(--accent); box-shadow: none; }
+nav { background: none; padding: 0; gap: 4px; }
+nav button { font-size: 14px; padding: 6px 12px; color: var(--muted); border-radius: 8px; }
+nav button:hover { color: var(--text); background: none; }
+nav button[aria-pressed=true] { background: none; box-shadow: none; color: var(--text); font-weight: 600; }
+.pill { border: 0; padding: 0; font-weight: 500; letter-spacing: 0.02em; }
+
+main { max-width: 1024px; padding: 0 22px 80px; }
+.notice { background: none; padding: 0; margin: 14px auto 0; font-size: 12px; }
+.notice.error { padding: 10px 14px; background: color-mix(in srgb, var(--bad) 8%, transparent); }
+
+/* Team: a second bar of tabs under the top bar, like a product sub-menu */
+.local-nav { position: sticky; top: 52px; z-index: 15; display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin: 18px -22px 0; padding: 10px 22px; background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border); }
+.local-title { font-size: 21px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs a { font-size: 14px; color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+.tabs a:hover { color: var(--text); }
+.tabs a[aria-current=page] { color: var(--text); background: var(--fill-strong); font-weight: 500; }
+.panel > .section-title:first-child { margin-top: 32px; }
+
+.section-title { margin: 44px 0 16px; }
+.section-title span { font-size: 14px; }
+
+/* Cards and panels: flat, hairline border, no lift */
+.card, .company-card, .stage-card, .meeting-row, .autonomy-card, .rule-card, .reminder, .report, .measures div {
+  box-shadow: var(--shadow); animation: none; }
+.card:hover, .company-card:hover, .stage-card:hover, .meeting-row:hover { transform: none; box-shadow: var(--shadow-lift); }
+.card { border-radius: var(--radius-large); }
+.measures div { border-radius: var(--radius); }
+.measures strong { background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--text); font-size: 34px; }
+
+/* Chips: grey unless the colour means something (approved, needs attention, failed) */
+.chip, .chip-innovation, .chip-requested, .chip-linked, .chip-rec-link, .chip-feasibility {
+  background: var(--fill); color: var(--muted); }
+.chip-rec-accept { color: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.chip-rec-ask, .chip-rec-triage { color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.chip-rec-decline { color: var(--bad); background: color-mix(in srgb, var(--bad) 9%, transparent); }
+
+/* Queue and filter tabs as quiet segmented pills */
+.queue-tabs button { background: none; color: var(--muted); }
+.queue-tabs button[aria-selected=true] { background: var(--fill-strong); color: var(--text); }
+
+dialog { box-shadow: 0 0 0 1px var(--border), 0 24px 60px rgba(0, 0, 0, 0.18); }
+footer { margin-top: 64px; }
+
+@media (max-width: 720px) {
+  .topbar { position: static; }             /* on phones only the Team tabs stick, so nothing overlaps */
+  .topbar-inner { height: auto; padding: 8px 16px; }
+  nav button { padding: 6px 8px; }
+  .pill { display: none; }
+  .local-nav { top: 0; margin: 12px -16px 0; padding: 10px 16px; flex-direction: column; align-items: stretch; gap: 8px; }
+  .hero { padding: 40px 0 20px; }
+  main { padding: 0 16px 56px; }
+}
+.reminder-icon { display: none; }          /* the coloured edge already shows urgency */
+.reminder { padding: 12px 16px; }

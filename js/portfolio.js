@@ -71,7 +71,10 @@ const fmtStamp = iso => new Date(iso).toLocaleString([], {weekday: 'short', day:
   minute: '2-digit', timeZone: 'Asia/Dubai'});
 
 document.addEventListener('click', event => {
-  if (event.target.closest('[data-open-report]')) get('weekly-report').scrollIntoView({behavior: 'smooth', block: 'start'});
+  if (event.target.closest('[data-open-report]')) {
+    location.hash = 'portfolio';
+    setTimeout(() => get('weekly-report').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);
+  }
 });
 
 function reportText(r) {

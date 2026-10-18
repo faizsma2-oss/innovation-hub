@@ -1,26 +1,27 @@
 /* YOUR DESIGN CONTROLS: change these values and refresh the browser.
-   Light mode first; dark mode below switches automatically with the computer's setting. */
+   Calm and minimal, in the spirit of apple.com: system font, lots of space, one blue for actions,
+   hairline borders instead of shadows. Light first; dark follows the device setting. */
 :root {
   --background: #f5f5f7;            /* page */
   --surface: #ffffff;               /* cards, dialogs */
-  --fill: rgba(120, 120, 128, 0.10);/* buttons, inputs, quiet panels */
-  --fill-strong: rgba(120, 120, 128, 0.18);
-  --glass: rgba(251, 251, 253, 0.72);/* frosted top bar */
+  --fill: rgba(0, 0, 0, 0.04);      /* buttons, inputs, quiet panels */
+  --fill-strong: rgba(0, 0, 0, 0.08);
+  --glass: rgba(251, 251, 253, 0.8);/* top bars */
   --text: #1d1d1f;
   --muted: #6e6e73;
-  --accent: #2f6bff;                /* electric blue */
-  --accent-2: #8b5cf6;              /* violet, for gradients */
-  --accent-soft: rgba(47, 107, 255, 0.09);
-  --border: rgba(0, 0, 0, 0.08);
-  --good: #1a9a52;
-  --warn: #b7791f;
-  --bad: #d93025;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.04), 0 18px 40px rgba(0, 0, 0, 0.10);
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --radius: 18px;
-  --radius-large: 28px;
+  --accent: #0071e3;                /* the one action colour */
+  --accent-2: #0071e3;              /* kept equal: no gradients */
+  --accent-soft: rgba(0, 113, 227, 0.08);
+  --border: rgba(0, 0, 0, 0.1);
+  --good: #1d8348;
+  --warn: #b25000;
+  --bad: #d70015;
+  --shadow: 0 0 0 1px var(--border);            /* a hairline, not a glow */
+  --shadow-lift: 0 0 0 1px rgba(0, 0, 0, 0.18);
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --radius: 14px;
+  --radius-large: 18px;
   --space: 8px;
   color-scheme: light;
 }
@@ -28,21 +29,21 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #000000;
-    --surface: #1c1c1e;
-    --fill: rgba(120, 120, 128, 0.22);
-    --fill-strong: rgba(120, 120, 128, 0.34);
-    --glass: rgba(22, 22, 23, 0.72);
+    --surface: #161617;
+    --fill: rgba(255, 255, 255, 0.07);
+    --fill-strong: rgba(255, 255, 255, 0.12);
+    --glass: rgba(22, 22, 23, 0.8);
     --text: #f5f5f7;
-    --muted: #a1a1a6;
-    --accent: #5b8cff;
-    --accent-2: #a78bfa;
-    --accent-soft: rgba(91, 140, 255, 0.16);
-    --border: rgba(255, 255, 255, 0.10);
-    --good: #34c76f;
-    --warn: #e0a83a;
-    --bad: #ff6159;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.4);
-    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 40px rgba(0, 0, 0, 0.6);
+    --muted: #86868b;
+    --accent: #2997ff;
+    --accent-2: #2997ff;
+    --accent-soft: rgba(41, 151, 255, 0.14);
+    --border: rgba(255, 255, 255, 0.12);
+    --good: #30d158;
+    --warn: #ff9f0a;
+    --bad: #ff453a;
+    --shadow: 0 0 0 1px var(--border);
+    --shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.24);
     color-scheme: dark;
   }
 }

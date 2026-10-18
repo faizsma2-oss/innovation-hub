@@ -22,7 +22,7 @@ async function loadLibrary() {
          <button type="button" class="primary" id="library-raise">Describe the problem →</button></div>`;
     get('library-count').textContent = !q ? `${data.count} entries` : !data.count ? 'No results'
       : `${data.count} ${data.count === 1 ? 'result' : 'results'}, best match first`;
-    if (get('library-raise')) get('library-raise').onclick = () => { switchView('employee'); get('new-problem').click(); };
+    if (get('library-raise')) get('library-raise').onclick = () => { location.hash = 'my-requests'; get('new-problem').click(); };
   } catch (error) {
     get('library-results').innerHTML = `<p class="error-text">Could not load the library. ${escapeText(error.message)}</p>`;
   }
@@ -45,9 +45,9 @@ function libraryCard(entry) {
 let libraryFromTeam = false;
 document.addEventListener('click', event => {
   const link = event.target.closest('[data-library-record]');
-  if (link) { switchView('reviewer'); openDetail(link.dataset.libraryRecord); }   // the request opens in the team view
+  if (link) { location.hash = 'requests'; openDetail(link.dataset.libraryRecord); }   // the request opens in the team view
 });
-get('library-nav').onclick = () => { libraryFromTeam = currentView === 'reviewer'; switchView('library'); loadLibrary(); get('library-search').focus(); };
+get('library-nav').onclick = () => { libraryFromTeam = currentView === 'reviewer'; location.hash = 'library'; get('library-search').focus(); };
 get('library-search').oninput = () => { clearTimeout(librarySearchTimer); librarySearchTimer = setTimeout(loadLibrary, 300); };
 get('library-kinds').addEventListener('click', event => {
   const tab = event.target.closest('[data-kind]');
@@ -55,3 +55,4 @@ get('library-kinds').addEventListener('click', event => {
   libraryKind = tab.dataset.kind;
   loadLibrary();
 });
+if (location.hash === '#library') loadLibrary();

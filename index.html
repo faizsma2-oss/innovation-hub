@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Innovation Hub · Learning demo</title>
-  <link rel="stylesheet" href="styles/theme.css?v=24">
-  <link rel="stylesheet" href="styles/layout.css?v=34">
+  <link rel="stylesheet" href="styles/theme.css?v=40">
+  <link rel="stylesheet" href="styles/layout.css?v=42">
 </head>
 <body>
 <div class="shell">
@@ -13,73 +13,87 @@
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand"><span class="brand-orb" aria-hidden="true"></span>Innovation Hub</div>
-      <nav aria-label="Demo views">
-        <button id="employee-nav" aria-pressed="true">Employee</button>
-        <button id="reviewer-nav" aria-pressed="false">Innovation team</button>
+      <nav aria-label="Sections">
+        <button id="employee-nav" aria-pressed="true">My requests</button>
+        <button id="reviewer-nav" aria-pressed="false">Team</button>
         <button id="library-nav" aria-pressed="false">Library</button>
       </nav>
-      <span class="pill">DEMO</span>
+      <span class="pill">Demo</span>
     </div>
   </header>
 
   <main>
-    <div class="notice">Fictional data only · Saved on this computer · Switching views is not sign-in. <span id="mode-notice">Checking which assistant is active…</span></div>
+    <p class="notice">Fictional data · Switching views is not sign-in · <span id="mode-notice">Checking which assistant is active…</span></p>
     <div class="notice error" id="load-error" role="alert" hidden></div>
 
     <!-- Employee view: one entry point for getting help today and for improvements worth exploring -->
     <section id="employee-view">
       <div class="hero">
-        <p class="eyebrow">FROM PROBLEM TO POSSIBILITY</p>
         <h1>Explain it once.<br>We'll take it from there.</h1>
-        <p class="intro">Get help today from the right team, and surface improvements worth exploring. No category, solution or cost needed.</p>
-        <button class="primary" id="new-problem">What is making your work difficult? <span>→</span></button>
+        <p class="intro">Get help today from the right team, or raise an improvement worth exploring. In your own words, in English or Arabic.</p>
+        <button class="primary" id="new-problem">Describe a problem</button>
       </div>
-      <div class="section-title"><h2>Your requests</h2><span>Demo user · demo-employee</span></div>
+      <div class="section-title"><h2>Your requests</h2><span>Demo user</span></div>
       <div id="employee-list" class="cards"><p class="muted">Loading…</p></div>
     </section>
 
     <!-- Reviewer view: queues, measures and briefs -->
+    <!-- Team: one job per tab, each with its own link (#today, #requests, #portfolio, #suppliers, #insights) -->
     <section id="reviewer-view" hidden>
-      <div class="hero">
-        <p class="eyebrow">INNOVATION TEAM</p>
-        <h1>Evaluate opportunities.<br>Not paperwork.</h1>
-        <p class="intro">Routine requests go to the team that resolves them. Opportunities arrive with a brief, a transparent priority and the evidence behind it.</p>
+      <div class="local-nav">
+        <h1 class="local-title">Team</h1>
+        <nav class="tabs" aria-label="Team sections" id="team-tabs">
+          <a href="#today" data-tab="today">Today</a>
+          <a href="#requests" data-tab="requests">Requests</a>
+          <a href="#portfolio" data-tab="portfolio">Portfolio</a>
+          <a href="#suppliers" data-tab="suppliers">Suppliers</a>
+          <a href="#insights" data-tab="insights">Insights</a>
+        </nav>
       </div>
 
-      <div class="measures" id="measures" aria-label="Success measures"></div>
-      <p class="muted measures-note" id="measures-note"></p>
+      <div class="panel" data-panel="today">
+        <div class="section-title"><h2 id="today-heading">Today</h2><span id="today-date"></span></div>
+        <div id="today" class="today"></div>
+        <div class="section-title"><h2>Meetings</h2><span>Invitations go out only after a person approves them.</span></div>
+        <div id="meetings-list" class="meetings-list"></div>
+      </div>
 
-      <div class="section-title"><h2>Today</h2><span id="today-date"></span></div>
-      <div id="today" class="today"></div>
+      <div class="panel" data-panel="requests" hidden>
+        <div class="section-title"><h2>Requests</h2><span>Routine requests go to the team that resolves them; opportunities arrive with a brief.</span></div>
+        <div class="queue-tabs" role="tablist" id="queue-tabs"></div>
+        <div id="review-list" class="cards"><p class="muted">Loading…</p></div>
+      </div>
 
-      <div class="section-title"><h2>Portfolio</h2><span>Every opportunity by stage. Click a card to open it.</span></div>
-      <div id="portfolio-board" class="board"></div>
-      <div class="inline-row report-actions"><button type="button" class="primary" id="weekly-button">Prepare this week's report</button>
-        <span class="muted">Facts come from the records; the AI writes only the summary. Nothing is sent. <span id="report-next"></span></span></div>
-      <div id="weekly-report"></div>
+      <div class="panel" data-panel="portfolio" hidden>
+        <div class="section-title"><h2>Portfolio</h2><span>Every opportunity by stage.</span></div>
+        <div id="portfolio-board" class="board"></div>
+        <div class="section-title"><h2>Weekly report</h2><span id="report-next"></span></div>
+        <div class="inline-row report-actions"><button type="button" id="weekly-button">Prepare this week's report</button>
+          <span class="muted">Facts come from the records; the AI writes only the summary. Nothing is sent.</span></div>
+        <div id="weekly-report"></div>
+      </div>
 
-      <div class="section-title"><h2>Earned autonomy</h2><span>How often people agree with the AI, per decision.</span></div>
-      <div id="autonomy" class="autonomy-grid"></div>
-      <p class="muted measures-note" id="autonomy-note"></p>
-      <div id="routing-rules"></div>
+      <div class="panel" data-panel="suppliers" hidden>
+        <div class="section-title"><h2>Suppliers</h2><span>Contacts, emails, meetings, documents and notes for each company.</span></div>
+        <div id="companies-list" class="company-grid"></div>
+      </div>
 
-      <div class="section-title"><h2>Suppliers</h2><span>One page per company: contacts, emails, meetings, actions and notes.</span></div>
-      <div id="companies-list" class="company-grid"></div>
-
-      <div class="section-title"><h2>Meetings</h2><span>Invitations go out only after a person approves them. Teams links, calendar invites and transcripts.</span></div>
-      <div id="meetings-list" class="meetings-list"></div>
-
-      <div class="section-title"><h2>Queues</h2></div>
-      <div class="queue-tabs" role="tablist" id="queue-tabs"></div>
-      <div id="review-list" class="cards"><p class="muted">Loading…</p></div>
+      <div class="panel" data-panel="insights" hidden>
+        <div class="section-title"><h2>Measures</h2></div>
+        <div class="measures" id="measures" aria-label="Success measures"></div>
+        <p class="muted measures-note" id="measures-note"></p>
+        <div class="section-title"><h2>Earned autonomy</h2><span>How often people agree with the AI, per decision.</span></div>
+        <div id="autonomy" class="autonomy-grid"></div>
+        <p class="muted measures-note" id="autonomy-note"></p>
+        <div id="routing-rules"></div>
+      </div>
     </section>
 
     <!-- Library: everything that already exists, searchable by everyone -->
     <section id="library-view" hidden>
       <div class="hero">
-        <p class="eyebrow">LIBRARY</p>
         <h1>Someone may have<br>solved it already.</h1>
-        <p class="intro">Tools, guidance, projects under way, earlier pilots and the lessons learned from them. Search before you start something new.</p>
+        <p class="intro">Tools, projects under way, earlier pilots and their lessons. Search before you start something new.</p>
         <label for="library-search" class="visually-hidden">Search the library</label>
         <input id="library-search" class="library-search" type="search" maxlength="200" placeholder="Search, e.g. permits on paper, chiller alarms, visitor badges">
       </div>
@@ -174,16 +188,16 @@
   <section id="detail-history"></section>
 </dialog>
 
-<script src="js/app.js?v=33"></script>
-<script src="js/intake.js?v=34"></script>
-<script src="js/voice.js?v=33"></script>
-<script src="js/review.js?v=24"></script>
-<script src="js/research.js?v=35"></script>
-<script src="js/meetings.js?v=28"></script>
-<script src="js/scale.js?v=24"></script>
-<script src="js/portfolio.js?v=24"></script>
-<script src="js/companies.js?v=35"></script>
-<script src="js/library.js?v=26"></script>
-<script src="js/autonomy.js?v=32"></script>
+<script src="js/app.js?v=40"></script>
+<script src="js/intake.js?v=40"></script>
+<script src="js/voice.js?v=40"></script>
+<script src="js/review.js?v=40"></script>
+<script src="js/research.js?v=40"></script>
+<script src="js/meetings.js?v=40"></script>
+<script src="js/scale.js?v=40"></script>
+<script src="js/portfolio.js?v=40"></script>
+<script src="js/companies.js?v=40"></script>
+<script src="js/library.js?v=40"></script>
+<script src="js/autonomy.js?v=40"></script>
 </body>
 </html>
