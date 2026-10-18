@@ -118,9 +118,10 @@ def test_copilot_api_answers_from_the_records_and_can_require_a_key(client, monk
 def test_openapi_has_the_operations_the_copilot_plugin_calls(client):
     spec = client.get("/openapi.json").json()
     operations = {op["operationId"] for path in spec["paths"].values() for op in path.values()}
-    assert {"listCompanies", "getCompanyStatus"} <= operations
+    assert {"listCompanies", "getCompanyStatus", "listOverdue", "listDecisionsNeeded"} <= operations
     plugin = json.load(open("copilot/appPackage/hub-plugin.json"))
-    assert {f["name"] for f in plugin["functions"]} == {"listCompanies", "getCompanyStatus"}
+    assert {f["name"] for f in plugin["functions"]} == {"listCompanies", "getCompanyStatus", "listOverdue", "listDecisionsNeeded"}
+    assert set(plugin["runtimes"][0]["run_for_functions"]) == {f["name"] for f in plugin["functions"]}
     agent = json.load(open("copilot/appPackage/declarativeAgent.json"))
     assert agent["actions"][0]["file"] == "hub-plugin.json"
 
@@ -174,3 +175,38 @@ def test_graph_books_a_teams_meeting_in_uae_time():
 def test_transcript_is_turned_into_plain_text():
     vtt = "WEBVTT\n\n1\n00:00:01.000 --> 00:00:04.000\n<v Sara>Can you host in the UAE?</v>\n\n00:00:05.000 --> 00:00:07.000\n<v Supplier>Yes, in Dubai.</v>"
     assert vtt_to_text(vtt) == "Sara: Can you host in the UAE?\nSupplier: Yes, in Dubai."
+
+
+# ── Copilot: what's overdue, what needs a decision ───────────────────────────
+
+def test_copilot_overdue_matches_the_today_panel_and_filters_by_owner(client, monkeypatch):
+    from datetime import date
+    from backend.meetings import calendar
+    from test_meetings import at
+    sid, names, page, email = company_setup(client)
+    meeting = client.post("/api/meetings", json={"submission_id": sid, "supplier": names[0], "contact": email}).json()
+    client.post(f"/api/meetings/{meeting['id']}/book", json={"start_at": "2026-11-03T10:00"})
+    client.post(f"/api/meetings/{meeting['id']}/debrief", json={"notes": (
+        "Sara will send the sample files by 5 November. The supplier will send a quote by 6 November. "
+        "Omar will check the export format.")})
+    at(monkeypatch, "2026-11-10")
+    overdue = client.get("/api/copilot/overdue").json()
+    late = {i["owner"]: i for i in overdue["items"] if i["kind"] == "overdue"}
+    assert late["Sara"]["days_late"] == 5 and late["Sara"]["request"] == sid
+    assert names[0] in late                                       # the supplier's own action
+    assert "Omar" not in late                                     # no date agreed: never "overdue"
+    today = {i["text"] for i in client.get("/api/reminders").json()["items"] if i["kind"] == "overdue"}
+    assert {i["what"] for i in overdue["items"] if i["kind"] == "overdue"} == today      # same rules as Today
+    mine = client.get("/api/copilot/overdue", params={"owner": "sara"}).json()["items"]
+    assert [i["owner"] for i in mine] == ["Sara"]
+
+
+def test_copilot_decisions_match_the_weekly_report(client):
+    from test_scale import CASE, post as scale_post, scaling
+    sid = scaling(client)
+    scale_post(client, sid, "scale/business-case", **CASE)
+    decisions = client.get("/api/copilot/decisions").json()["decisions"]
+    case = next(d for d in decisions if d["id"] == sid)
+    assert case["who_decides"] == "Management" and case["days_waiting"] == 0 and "Pays back" in case["detail"]
+    report = client.post("/api/reports/weekly").json()
+    assert {(d["id"], d["decision"]) for d in report["decisions_needed"]} == {(d["id"], d["decision"]) for d in decisions}

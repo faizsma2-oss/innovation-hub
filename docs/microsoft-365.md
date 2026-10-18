@@ -42,7 +42,7 @@ The package is in `copilot/appPackage/`:
 |---|---|
 | `manifest.json` | The app package manifest (v1.19) that contains the agent |
 | `declarativeAgent.json` | The agent: instructions (answer only from the Hub, never guess, can't send), conversation starters (schema v1.6) |
-| `hub-plugin.json` | The API plugin: two read-only functions, `listCompanies` and `getCompanyStatus` (schema v2.4) |
+| `hub-plugin.json` | The API plugin: four read-only functions, `listCompanies`, `getCompanyStatus`, `listOverdue` and `listDecisionsNeeded` (schema v2.4) |
 | `openapi.json` | The two Hub endpoints, generated from the Hub's own code by `scripts/build_copilot_package.py` |
 
 Steps:

@@ -46,6 +46,31 @@ def owner_of(record: dict) -> str:
             or ((research.get("pilot") or {}).get("setup") or {}).get("owner") or "UNASSIGNED")
 
 
+def decisions_needed(records: dict) -> list[dict]:
+    """Decisions waiting on people, from the records. Shared by the weekly report and Copilot."""
+    decisions = []
+    for sid, r in records.items():
+        research = r.get("research") or {}
+        case = (research.get("scale") or {}).get("business_case")
+        if r["status"] == "Scaling" and case and case["status"] == "AWAITING DECISION":
+            decisions.append({"id": sid, "title": r["title"], "decision": "Approve or reject the business case",
+                              "detail": case["calc"]["verdict"], "who_decides": "Management",
+                              "waiting_since": case["prepared_at"][:10]})
+        if r["innovation_track"] == "employee_requested" and r["status"] in ("Submitted", "Under review", "Routed", "Needs clarification"):
+            decisions.append({"id": sid, "title": r["title"], "decision": "Employee-requested review needs a decision",
+                              "detail": (r.get("recommendation") or {}).get("reason", ""), "who_decides": "Innovation team",
+                              "waiting_since": r["created_at"][:10]})
+        pilot = research.get("pilot") or {}
+        evaluations, decided = pilot.get("evaluations") or [], {d["round"] for d in pilot.get("decisions") or []}
+        if r["status"] == "Pilot running" and evaluations and evaluations[-1]["round"] not in decided:
+            decisions.append({"id": sid, "title": r["title"], "decision": "Decide the pilot: scale, extend, revise or stop",
+                              "detail": f"Verdict {evaluations[-1]['verdict']}, recommends {evaluations[-1]['recommendation']}",
+                              "who_decides": "Innovation team",
+                              "waiting_since": (evaluations[-1].get("evaluated_at") or "")[:10] or None})
+
+    return decisions
+
+
 @router.get("/api/portfolio")
 def portfolio():
     now = datetime.now(timezone.utc)
@@ -88,21 +113,7 @@ def weekly_report():
                 line |= {"to": e["to_status"], "date": e["created_at"][:10], "steps": line["steps"] + 1}
         moved = list(moved.values())
 
-        decisions = []
-        for sid, r in records.items():
-            research = r.get("research") or {}
-            case = (research.get("scale") or {}).get("business_case")
-            if r["status"] == "Scaling" and case and case["status"] == "AWAITING DECISION":
-                decisions.append({"id": sid, "title": r["title"], "decision": "Approve or reject the business case",
-                                  "detail": case["calc"]["verdict"]})
-            if r["innovation_track"] == "employee_requested" and r["status"] in ("Submitted", "Under review", "Routed", "Needs clarification"):
-                decisions.append({"id": sid, "title": r["title"], "decision": "Employee-requested review needs a decision",
-                                  "detail": (r.get("recommendation") or {}).get("reason", "")})
-            pilot = research.get("pilot") or {}
-            evaluations, decided = pilot.get("evaluations") or [], {d["round"] for d in pilot.get("decisions") or []}
-            if r["status"] == "Pilot running" and evaluations and evaluations[-1]["round"] not in decided:
-                decisions.append({"id": sid, "title": r["title"], "decision": "Decide the pilot: scale, extend, revise or stop",
-                                  "detail": f"Verdict {evaluations[-1]['verdict']}, recommends {evaluations[-1]['recommendation']}"})
+        decisions = decisions_needed(records)
 
         results = []
         for e in events:

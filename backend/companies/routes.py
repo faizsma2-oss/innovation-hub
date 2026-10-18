@@ -262,6 +262,51 @@ def copilot_company(company_id: str, authorization: str | None = Header(default=
         "source": "Innovation Hub records (fictional demo data)"}
 
 
+@router.get("/api/copilot/overdue", operation_id="listOverdue",
+            summary="What is overdue or slipping: actions, unanswered supplier emails, missing meeting notes, pilots and check-ins")
+def copilot_overdue(owner: str = "", authorization: str | None = Header(default=None),
+                    x_api_key: str | None = Header(default=None)):
+    """The same rules as the Today panel, without the 'coming up' items. Optionally for one owner."""
+    copilot_key(authorization, x_api_key)
+    from ..meetings.routes import reminders
+    with db.connect() as conn:
+        actions = {row["pk"]: dict(row) for row in conn.execute("SELECT pk, action, owner, due FROM meeting_actions")}
+        titles = {f"SUB-{row['pk']:04d}": row["title"] for row in conn.execute("SELECT pk, title FROM submissions")}
+    today = calendar.today()
+    items = []
+    for item in reminders()["items"]:
+        if item["kind"] in ("upcoming", "due_soon", "decision"):
+            continue                                  # not overdue; decisions have their own question
+        action = actions.get(item.get("action_id")) or {}
+        due = item.get("due")
+        late = (today - datetime.fromisoformat(due[:10]).date()).days if due else None
+        items.append({"what": item["text"], "kind": item["kind"], "owner": action.get("owner") or "Innovation team",
+                      "due": due, "days_late": late if late and late > 0 else 0,
+                      "request": item.get("submission_id"), "request_title": titles.get(item.get("submission_id"))})
+    if owner.strip():
+        items = [i for i in items if owner.strip().lower() in i["owner"].lower()]
+    return {"today": today.isoformat(), "count": len(items), "items": items,
+            "source": "Innovation Hub records, same rules as the Today panel (fictional demo data)"}
+
+
+@router.get("/api/copilot/decisions", operation_id="listDecisionsNeeded",
+            summary="Decisions waiting on people: business cases, pilot decisions and employee-requested reviews")
+def copilot_decisions(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)):
+    """The same rules as the weekly report. Says who decides; the Hub doesn't yet know who is asking."""
+    copilot_key(authorization, x_api_key)
+    from ..reports.routes import decisions_needed, innovation_records
+    with db.connect() as conn:
+        records = {r["id"]: r for r in innovation_records(conn)}
+    decisions = decisions_needed(records)
+    today = calendar.today()
+    for d in decisions:
+        since = d.get("waiting_since")
+        d["days_waiting"] = (today - datetime.fromisoformat(since).date()).days if since else None
+    return {"today": today.isoformat(), "count": len(decisions), "decisions": decisions,
+            "note": "Decisions are made in the Innovation Hub, not in Copilot.",
+            "source": "Innovation Hub records, same rules as the weekly report (fictional demo data)"}
+
+
 # ── Building the pages ───────────────────────────────────────────────────────
 
 def sync(conn):

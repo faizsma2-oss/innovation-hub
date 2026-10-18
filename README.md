@@ -212,7 +212,8 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
 - **Import pilot measurements from Excel or CSV** (`backend/research/pilot_import.py`): one row per reading or one column per metric; phase from a Phase column or the pilot's start date; day-first dates; a preview lists every row it can't use (bad date, not a number, unknown metric, duplicate) and nothing is saved until a person confirms. Plain code, no AI.
 - **Business case scenarios** (`backend/scale/rules.py`): low (50% of the pilot's saving holds, costs +20%), expected (as calculated) and high (120%), adjustable per case, plus a **break-even**: the smallest share of the saving that still pays back within three years. All calculated in code.
 - **Better matching of existing tools, lessons and similar requests** (`backend/intake/search.py`): SQLite full-text search with word stems, so rewordings match ("permits to work" finds "permit-to-work"), and similar requests are weighted by how rare the shared words are. A labelled set of 22 cases in `tests/test_search.py` went from 15/22 to 22/22.
-- 219 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Copilot: "what's overdue?" and "what needs a decision?"** (`/api/copilot/overdue`, `/api/copilot/decisions`): the same rules as the Today panel and the weekly report, with owners, days late, who decides and days waiting. Read-only; decisions are made in the Hub.
+- 221 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 

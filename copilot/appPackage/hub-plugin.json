@@ -3,15 +3,22 @@
   "schema_version": "v2.4",
   "name_for_human": "Innovation Hub",
   "namespace": "innovationhub",
-  "description_for_human": "Supplier status from the Innovation Hub: stage, contacts, meetings, actions and notes.",
-  "description_for_model": "Use this when the user asks about a supplier, vendor or partner company the innovation team is exploring, or about supplier meetings, emails, follow-ups, pilots or open actions. listCompanies finds companies by name; getCompanyStatus returns everything recorded about one company.",
+  "description_for_human": "Supplier status, overdue items and decisions waiting, from the Innovation Hub.",
+  "description_for_model": "Use this when the user asks about supplier, vendor or partner companies the innovation team is exploring, about supplier meetings, emails, follow-ups or pilots, about anything overdue, late or slipping, or about decisions waiting (business cases, pilot decisions, innovation reviews). listCompanies finds companies; getCompanyStatus gives one company's details; listOverdue lists what is late; listDecisionsNeeded lists decisions waiting and who makes them.",
   "functions": [
     {
       "name": "listCompanies",
       "description": "List supplier companies, optionally filtered by part of the name, with stage, last contact, next meeting and number of open actions.",
       "capabilities": {
-        "confirmation": {"type": "None", "isNonConsequential": true},
-        "security_info": {"data_handling": ["GetPrivateData"]}
+        "confirmation": {
+          "type": "None",
+          "isNonConsequential": true
+        },
+        "security_info": {
+          "data_handling": [
+            "GetPrivateData"
+          ]
+        }
       }
     },
     {
@@ -27,17 +34,82 @@
         }
       },
       "capabilities": {
-        "confirmation": {"type": "None", "isNonConsequential": true},
-        "security_info": {"data_handling": ["GetPrivateData"]}
+        "confirmation": {
+          "type": "None",
+          "isNonConsequential": true
+        },
+        "security_info": {
+          "data_handling": [
+            "GetPrivateData"
+          ]
+        }
+      }
+    },
+    {
+      "name": "listOverdue",
+      "description": "Everything overdue or slipping: overdue actions with owners, supplier emails with no reply past the follow-up date, meetings held without notes, pilots past their end date, benefit check-ins due. Pass owner to narrow to one person.",
+      "states": {
+        "responding": {
+          "instructions": [
+            "List the most late items first, with owner, how many days late and the request number.",
+            "Only use items in the response. If the list is empty, say nothing is overdue.",
+            "To mark something done, tell the user to open it in the Innovation Hub."
+          ]
+        }
+      },
+      "capabilities": {
+        "confirmation": {
+          "type": "None",
+          "isNonConsequential": true
+        },
+        "security_info": {
+          "data_handling": [
+            "GetPrivateData"
+          ]
+        }
+      }
+    },
+    {
+      "name": "listDecisionsNeeded",
+      "description": "Decisions waiting on people: business cases awaiting management approval, evaluated pilots waiting for a scale/extend/revise/stop decision, and employee-requested innovation reviews. Each says who decides and how long it has waited.",
+      "states": {
+        "responding": {
+          "instructions": [
+            "Group by who decides (Management, Innovation team) and show the longest waiting first.",
+            "Include the detail given (verdict, payback or recommendation) without adding to it.",
+            "Decisions are made in the Innovation Hub; Copilot can't approve or decide."
+          ]
+        }
+      },
+      "capabilities": {
+        "confirmation": {
+          "type": "None",
+          "isNonConsequential": true
+        },
+        "security_info": {
+          "data_handling": [
+            "GetPrivateData"
+          ]
+        }
       }
     }
   ],
   "runtimes": [
     {
       "type": "OpenApi",
-      "auth": {"type": "ApiKeyPluginVault", "reference_id": "${{HUB_COPILOT_KEY_REGISTRATION_ID}}"},
-      "spec": {"url": "openapi.json"},
-      "run_for_functions": ["listCompanies", "getCompanyStatus"]
+      "auth": {
+        "type": "ApiKeyPluginVault",
+        "reference_id": "${{HUB_COPILOT_KEY_REGISTRATION_ID}}"
+      },
+      "spec": {
+        "url": "openapi.json"
+      },
+      "run_for_functions": [
+        "listCompanies",
+        "getCompanyStatus",
+        "listOverdue",
+        "listDecisionsNeeded"
+      ]
     }
   ]
 }

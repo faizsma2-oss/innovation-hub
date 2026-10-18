@@ -100,6 +100,89 @@
           }
         ]
       }
+    },
+    "/api/copilot/overdue": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "What is overdue or slipping: actions, unanswered supplier emails, missing meeting notes, pilots and check-ins",
+        "description": "The same rules as the Today panel, without the 'coming up' items. Optionally for one owner.",
+        "operationId": "listOverdue",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Owner"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "hubKey": []
+          }
+        ]
+      }
+    },
+    "/api/copilot/decisions": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "Decisions waiting on people: business cases, pilot decisions and employee-requested reviews",
+        "description": "The same rules as the weekly report. Says who decides; the Hub doesn't yet know who is asking.",
+        "operationId": "listDecisionsNeeded",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "hubKey": []
+          }
+        ]
+      }
     }
   },
   "components": {
