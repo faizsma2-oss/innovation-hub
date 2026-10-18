@@ -21,6 +21,7 @@ an innovation request: that stays with the innovation team.
 """
 import json
 import uuid
+from . import learned_routes
 from datetime import datetime
 
 from pydantic import ValidationError
@@ -271,7 +272,7 @@ class Turn:
         self.draft["description"] = text[: FIELD_LIMITS["description"]]
         self.draft["title"] = make_title(text)
         # Routing is a rule, decided before asking the brain anything.
-        route, _ = rules.classify_route(text, allow_incident=not self.state["safety_cleared"])
+        route, _ = learned_routes.classify(self.conn, text, allow_incident=not self.state["safety_cleared"])
         if route in ROUTINE_ROUTES and not rules.innovation_signals(text):
             self.state["route_candidate"] = route
             self.stage = "route_offer"
@@ -392,7 +393,7 @@ class Turn:
     def decide_route(self) -> tuple[str, str]:
         if self.state["route"]:
             return self.state["route"], self.state["route_reason"]
-        route, reason = rules.classify_route(self.full_text(), allow_incident=not self.state["safety_cleared"])
+        route, reason = learned_routes.classify(self.conn, self.full_text(), allow_incident=not self.state["safety_cleared"])
         if route == "incident":  # an incident never waits in a queue: hand it to a person
             return "human_triage", "Mentions an incident; a person should check it"
         return route, reason

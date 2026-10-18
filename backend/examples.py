@@ -162,7 +162,29 @@ def build():
     note(partner, live, "Decision", "Example: renewed for a year at the quoted licence price; support moves to the "
                                     "partner's UAE team from next quarter.")
 
+    routing_corrections()
     reports.weekly_report()
+
+
+# ── Routing corrections: the built-in rules miss these, a reviewer moves them, a rule is suggested ──
+
+CORRECTED = [
+    ("Example: Access card stopped working at the turnstile", "My access card stopped working at the turnstile this morning."),
+    ("Example: Turnstile rejects access card", "The turnstile rejects my access card since yesterday."),
+    ("Example: New starter access card", "A new starter's access card does not open the turnstile on level 2."),
+]
+
+
+def routing_corrections():
+    for title, description in CORRECTED:
+        with db.connect() as conn:
+            values = {field: None for field in ("current_process", "people_affected", "frequency", "impact",
+                                                "tried_already", "desired_outcome", "suggested_solution")}
+            sid = db.insert_submission(conn, values | {"title": title, "description": description, "department": "Operations"},
+                                       EXAMPLE_USER)
+            screening.screen(conn, sid, allow_auto=False, use_ai=False)
+        review.reroute(sid, review.RerouteIn(route="facilities_procurement",
+                                             reason="Example: the security desk in facilities handles access cards"))
 
 
 # ── Supplier companies: contacts, emails, a reply, a held meeting with actions, notes ──

@@ -13,6 +13,7 @@ get a human decision.
 import json
 import re
 
+from ..intake import learned_routes
 from .. import db
 from ..intake import rules, search
 from ..intake.brain import LABELS, MOCK, QUESTIONS, get_brain
@@ -221,7 +222,7 @@ def screen(conn, submission_id: str, allow_auto: bool = True, use_ai: bool = Tru
     pk = db.parse_pk(submission_id)
 
     if record["route"] is None and not record["linked_to"]:  # form submissions and samples
-        route, reason = rules.classify_route(full_text(record))
+        route, reason = learned_routes.classify(conn, full_text(record))
         if route == "incident":
             route, reason = "human_triage", "Mentions an incident; a person should check it"
         signals = rules.innovation_signals(full_text(record))

@@ -11,9 +11,11 @@ Plain code: the AI is what's being measured, so it plays no part in the measurin
 """
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from .. import db
+from ..intake import learned_routes
 
 router = APIRouter(tags=["autonomy"])
 
@@ -106,3 +108,53 @@ def summarise(key: str, items: list) -> dict:
     return {"key": key, "name": name, "what": what, "more_autonomy": unlock, "decisions": total, "agreed": agreed,
             "agreement": rate, "recent_agreement": recent_rate, "status": status, "why": why,
             "overrides": [note for ok, note in reversed(items) if not ok][:3]}
+
+
+# ── Routing rules learned from corrections ───────────────────────────────────
+
+class SuggestionIn(BaseModel):
+    key: str = Field(min_length=3, max_length=120)      # "term->route", as listed
+
+
+@router.get("/api/routing/suggestions")
+def routing_suggestions():
+    with db.connect() as conn:
+        return routing_suggestions_in(conn)
+
+
+@router.post("/api/routing/rules")
+def approve_rule(body: SuggestionIn):
+    """A person approves a suggested rule. It must still be suggested (enough evidence, no harm) right now."""
+    with db.connect() as conn:
+        suggestion = next((s for s in learned_routes.suggestions(conn) if s["key"] == body.key), None)
+        if suggestion is None:
+            raise HTTPException(409, "That suggestion isn't supported by the corrections any more")
+        rules = learned_routes.load(conn) + [{
+            "term": suggestion["term"], "word": suggestion["word"], "route": suggestion["route"],
+            "approved_by": "demo-reviewer", "approved_at": db.now(), "fixes": suggestion["fixes"],
+            "evidence": [r["id"] for r in suggestion["requests"]]}]
+        db.set_setting(conn, learned_routes.SETTING, rules)
+        return routing_suggestions_in(conn)
+
+
+@router.post("/api/routing/suggestions/dismiss")
+def dismiss_suggestion(body: SuggestionIn):
+    with db.connect() as conn:
+        dismissed = set(db.get_setting(conn, learned_routes.DISMISSED) or []) | {body.key}
+        db.set_setting(conn, learned_routes.DISMISSED, sorted(dismissed))
+        return routing_suggestions_in(conn)
+
+
+@router.delete("/api/routing/rules/{term}")
+def remove_rule(term: str):
+    with db.connect() as conn:
+        rules = learned_routes.load(conn)
+        if not any(r["term"] == term for r in rules):
+            raise HTTPException(404, "No such rule")
+        db.set_setting(conn, learned_routes.SETTING, [r for r in rules if r["term"] != term])
+        return routing_suggestions_in(conn)
+
+
+def routing_suggestions_in(conn) -> dict:
+    return {"suggestions": learned_routes.suggestions(conn), "rules": learned_routes.load(conn),
+            "min_support": learned_routes.MIN_SUPPORT}

@@ -607,3 +607,10 @@ a.button:hover { background: var(--fill-strong); }
 .note-fact:first-of-type { border-top: 0; }
 .note-fact p { margin: 2px 0; }
 .note-facts .flag { color: var(--warn); font-weight: 600; }
+
+/* ── 28. Learned routing rules ───────────────────────────────────────────── */
+.section-title.small { margin: 28px 0 12px; }
+.section-title.small h3 { margin: 0; font-size: 19px; }
+.rule-card { margin-bottom: 12px; padding: 16px 18px; border-radius: var(--radius-large); background: var(--surface); box-shadow: var(--shadow); font-size: 14px; }
+.rule-card p { margin: 0 0 6px; }
+.rule-list { padding-left: 18px; font-size: 14px; }

@@ -22,7 +22,7 @@ def test_new_sandbox_has_an_example_in_every_stage(public, monkeypatch):
         assert time.perf_counter() - started < 5                          # Render's port scan timed out before
         stages = {s["name"]: s["cards"] for s in visitor.get("/api/portfolio").json()["stages"]}
         assert all(stages[name] for name in STAGES)
-        by_status = {r["status"]: r for r in records if r["submitted_by"] == examples.EXAMPLE_USER}
+        by_status = {r["status"]: r for r in records if r["submitted_by"] == examples.EXAMPLE_USER and r["status"] != "Routed"}
         assert set(by_status) == {"Accepted", "Research", "Pilot running", "Scaling", "In operation", "Stopped"}
         assert all(r["title"].startswith("Example:") for r in by_status.values())
 
@@ -45,6 +45,9 @@ def test_new_sandbox_has_an_example_in_every_stage(public, monkeypatch):
         assert all(p["contacts"] for p in pages.values())
         assert any(i["kind"] == "overdue" for i in visitor.get("/api/reminders").json()["items"])
 
+        rule = visitor.get("/api/routing/suggestions").json()["suggestions"][0]
+        assert rule["route"] == "facilities_procurement" and rule["fixes"] == 3 and rule["breaks"] == 0
+
         report = visitor.get("/api/reports").json()[0]
         assert report["decisions_needed"] and report["moved"] and report["summary"]
         assert "Example:" in visitor.get("/api/submissions").text
@@ -54,7 +57,7 @@ def test_new_sandbox_has_an_example_in_every_stage(public, monkeypatch):
 def test_examples_do_not_take_over_the_demo_chat(client):
     examples.seed()
     examples.seed()                                                        # a second call adds nothing
-    assert sum(r["submitted_by"] == examples.EXAMPLE_USER for r in client.get("/api/submissions").json()) == 6
+    assert sum(r["submitted_by"] == examples.EXAMPLE_USER for r in client.get("/api/submissions").json()) == 9
     linked = Chat(client)
     linked.say("Several sites repeat the same inspection paperwork: handwritten inspection notes are copied "
                "into shared reports by hand.")
