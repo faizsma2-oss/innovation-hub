@@ -5,7 +5,7 @@
 const STATUS_LABELS = {planned: 'Draft ready', invite_sent: 'Waiting for reply', scheduled: 'Scheduled',
   held: 'Held', cancelled: 'Cancelled'};
 const REMINDER_ICONS = {follow_up: '✉️', needs_notes: '📝', upcoming: '📅', overdue: '⏰', due_soon: '⏳',
-  no_owner: '👤', pilot_ended: '🧪', decision: '⚖️', checkin: '📈'};
+  no_owner: '👤', pilot_ended: '🧪', decision: '⚖️', checkin: '📈', report: '📊'};
 let contactTypes = [];
 fetch('/api/meetings/contact-types').then(r => r.json()).then(list => { contactTypes = list; }).catch(() => {});
 
@@ -272,7 +272,9 @@ function renderToday(reminders) {
   get('today').innerHTML = reminders.items.length ? `<ul class="reminders">${reminders.items.map(item => `<li class="reminder ${item.severity}">
       <span class="reminder-icon" aria-hidden="true">${REMINDER_ICONS[item.kind] ?? '•'}</span>
       <span>${escapeText(item.text)}</span>
-      ${item.meeting_id ? `<button type="button" data-open-meeting="${item.meeting_id}">Open</button>` : `<button type="button" data-record="${escapeText(item.submission_id)}">Open</button>`}
+      ${item.meeting_id ? `<button type="button" data-open-meeting="${item.meeting_id}">Open</button>`
+        : item.report_id ? `<button type="button" data-open-report>Open</button>`
+        : `<button type="button" data-record="${escapeText(item.submission_id)}">Open</button>`}
       ${item.action_id ? `<button type="button" data-done-action="${item.action_id}">Done</button>` : ''}</li>`).join('')}</ul>`
     : '<p class="muted">Nothing needs attention today.</p>';
 }

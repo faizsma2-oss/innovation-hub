@@ -213,7 +213,8 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
 - **Business case scenarios** (`backend/scale/rules.py`): low (50% of the pilot's saving holds, costs +20%), expected (as calculated) and high (120%), adjustable per case, plus a **break-even**: the smallest share of the saving that still pays back within three years. All calculated in code.
 - **Better matching of existing tools, lessons and similar requests** (`backend/intake/search.py`): SQLite full-text search with word stems, so rewordings match ("permits to work" finds "permit-to-work"), and similar requests are weighted by how rare the shared words are. A labelled set of 22 cases in `tests/test_search.py` went from 15/22 to 22/22.
 - **Copilot: "what's overdue?" and "what needs a decision?"** (`/api/copilot/overdue`, `/api/copilot/decisions`): the same rules as the Today panel and the weekly report, with owners, days late, who decides and days waiting. Read-only; decisions are made in the Hub.
-- 221 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- **Weekly report every Monday** (`backend/reports/routes.py`): due from Monday 08:00 UAE time, covering last week (Monday to Sunday), never twice for the same week. On an always-on server set `HUB_SCHEDULER=on` and it's prepared at 08:00; on the sleeping public demo it's prepared the first time the team view opens after that. The Today panel shows it until someone marks it as sent. Each report now counts only what happened inside its own week.
+- 229 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 

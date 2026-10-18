@@ -324,6 +324,13 @@ def reminders():
                     items.append({"kind": "checkin", "severity": "high", "submission_id": sid,
                                   "text": f"{checkin['label']} benefits check-in is due: did the improvement hold?",
                                   "due": checkin["due"]})
+        latest = conn.execute("SELECT pk, report_json FROM reports ORDER BY pk DESC LIMIT 1").fetchone()
+        if latest:
+            report = json.loads(latest["report_json"])
+            if report.get("trigger") == "automatic" and report["status"] == "DRAFT":
+                items.append({"kind": "report", "severity": "medium", "report_id": latest["pk"],
+                              "text": f"The weekly report for {report['period']} is ready: check it and send it to management.",
+                              "due": report["generated_at"][:10]})
     order = {"high": 0, "medium": 1}
     items.sort(key=lambda item: (order[item["severity"]], item.get("due") or "9999"))
     return {"today": today.isoformat(), "items": items}

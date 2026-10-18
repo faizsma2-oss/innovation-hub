@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 import time
@@ -18,7 +19,7 @@ from .intake.brain import get_brain
 from .models import DEMO_USER, Status, SubmissionIn, SubmissionOut
 from .review import screening
 from .meetings.routes import router as meetings_router
-from .reports.routes import router as reports_router
+from .reports.routes import router as reports_router, scheduler as reports_scheduler
 from .scale.routes import router as scale_router
 from .research.evaluation_routes import router as evaluation_router
 from .research.pilot_routes import router as pilot_router
@@ -35,7 +36,15 @@ load_dotenv(PROJECT_ROOT / ".env")
 async def lifespan(app: FastAPI):
     db.init_db()
     screening.screen_unscreened()
+    # Always-on server (e.g. Khazna's): prepare Monday's weekly report at 08:00 UAE time by itself.
+    # Not on the public demo: it sleeps when idle and every visitor has their own copy, so there the
+    # report is prepared when the team view is first opened on or after Monday 08:00 (/api/reports/due).
+    task = None
+    if os.environ.get("HUB_SCHEDULER") == "on" and not SANDBOXES:
+        task = asyncio.create_task(reports_scheduler())
     yield
+    if task:
+        task.cancel()
 
 
 # The application object. Every route is attached to it.

@@ -13,8 +13,15 @@ async function loadPortfolio() {
         <span class="muted">${card.status === stage.name ? '' : `${escapeText(card.status)} · `}${card.days_in_stage} ${card.days_in_stage === 1 ? 'day' : 'days'}
           · ${card.owner === 'UNASSIGNED' ? '<span class="flag">no owner</span>' : escapeText(card.owner)}</span></button>`).join('')
         || '<p class="muted">Empty</p>'}</div>`).join('');
+    // On a server that sleeps, Monday's report is prepared the first time the team view opens after 08:00.
+    const due = await fetch('/api/reports/due', {method: 'POST'}).then(reply => reply.json()).catch(() => null);
+    if (due) {
+      const next = new Date(`${due.next_due}:00+04:00`);
+      get('report-next').textContent = `Next automatic report: ${next.toLocaleDateString([], {weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Asia/Dubai'})}, 08:00 UAE time.`;
+      if (due.prepared && typeof loadMeetings === 'function') loadMeetings();     // show the Today reminder
+    }
     const reports = await fetch('/api/reports').then(reply => reply.json());
-    if (reports.length && !get('weekly-report').innerHTML) renderReport(reports[0]);
+    if (reports.length && (due?.prepared || !get('weekly-report').innerHTML)) renderReport(reports[0]);
   } catch (error) {
     get('portfolio-board').innerHTML = `<p class="error-text">Could not load the portfolio. ${escapeText(error.message)}</p>`;
   }
@@ -26,6 +33,8 @@ function renderReport(r) {
   get('weekly-report').innerHTML = `<article class="report">
     <div class="solutions-head"><div><p class="eyebrow">WEEKLY REPORT · ${escapeText(r.period)}</p><h3>Innovation portfolio update</h3></div>
       <span class="status">${escapeText(r.status)}</span></div>
+    <p class="muted">${r.trigger === 'automatic' ? `Prepared automatically on ${escapeText(fmtStamp(r.generated_at))} for last week (Monday to Sunday).`
+      : `Prepared on request on ${escapeText(fmtStamp(r.generated_at))}.`}${r.sent_at ? ` Marked as sent on ${escapeText(fmtStamp(r.sent_at))}.` : ''}</p>
     <p class="report-summary">${escapeText(r.summary)}</p>
     <p class="muted">Summary by ${escapeText(r.generated_by)}. Every line below comes straight from the records.</p>
     <div class="plan-grid">
@@ -40,8 +49,14 @@ function renderReport(r) {
       <div><h5>Blockers</h5>${rows(r.blockers, b => escapeText(b))}</div>
     </div>
     <p class="muted">AI spend this week: $${r.ai_spend_usd.toFixed(2)}</p>
-    <div class="inline-row"><button type="button" id="copy-report">Copy as text for email</button><span id="copy-status" class="muted"></span></div>
+    <div class="inline-row"><button type="button" id="copy-report">Copy as text for email</button>
+      ${r.status === 'DRAFT' && r.id ? '<button type="button" class="primary" id="report-sent">Mark as sent</button>' : ''}
+      <span id="copy-status" class="muted"></span></div>
   </article>`;
+  if (get('report-sent')) get('report-sent').onclick = async () => {
+    const reply = await fetch(`/api/reports/${r.id}/sent`, {method: 'POST'});
+    if (reply.ok) { renderReport(await reply.json()); if (typeof loadMeetings === 'function') loadMeetings(); }
+  };
   get('copy-report').onclick = async () => {
     try {
       await navigator.clipboard.writeText(reportText(r));
@@ -51,6 +66,13 @@ function renderReport(r) {
     }
   };
 }
+
+const fmtStamp = iso => new Date(iso).toLocaleString([], {weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit',
+  minute: '2-digit', timeZone: 'Asia/Dubai'});
+
+document.addEventListener('click', event => {
+  if (event.target.closest('[data-open-report]')) get('weekly-report').scrollIntoView({behavior: 'smooth', block: 'start'});
+});
 
 function reportText(r) {
   const section = (title, items, line) => `${title}\n${items.length ? items.map(item => `- ${line(item)}`).join('\n') : '- None'}\n`;

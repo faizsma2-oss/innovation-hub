@@ -5,9 +5,9 @@ to the request it came from. The AI writes only the executive summary at the top
 summary containing a figure that isn't in the collected facts is replaced by a plain one.
 """
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from .. import db
 from ..meetings import calendar
@@ -94,16 +94,64 @@ def portfolio():
     return {"stages": [{"name": name, "cards": columns[name]} for name, _ in STAGES]}
 
 
+# The weekly report is due every Monday from 08:00 UAE time and covers the week before (Monday to Sunday).
+DUE_WEEKDAY, DUE_HOUR = 0, 8
+
+
 @router.post("/api/reports/weekly")
 def weekly_report():
+    """Prepared on request: the last 7 days up to today."""
     end = calendar.today()
-    start = end - timedelta(days=7)
-    since = datetime(start.year, start.month, start.day, tzinfo=timezone.utc).isoformat(timespec="seconds")
+    return build_report(end - timedelta(days=7), end, "manual")
+
+
+def week_due(now: datetime) -> datetime:
+    """The most recent Monday 08:00 (UAE time) at or before `now`."""
+    monday = (now - timedelta(days=(now.weekday() - DUE_WEEKDAY) % 7)).replace(hour=DUE_HOUR, minute=0, second=0, microsecond=0)
+    return monday if monday <= now else monday - timedelta(days=7)
+
+
+def ensure_weekly_report() -> dict | None:
+    """Prepare this week's report if it's due and not prepared yet. Returns the new report, or None."""
+    sunday = week_due(calendar.now_local()).date() - timedelta(days=1)
+    with db.connect() as conn:
+        # Already covered: any report (automatic or on request) that runs up to last Sunday or later.
+        if conn.execute("SELECT 1 FROM reports WHERE period_end >= ?", (sunday.isoformat(),)).fetchone():
+            return None
+    return build_report(sunday - timedelta(days=6), sunday, "automatic")
+
+
+def next_due() -> str:
+    return (week_due(calendar.now_local()) + timedelta(days=7)).isoformat(timespec="minutes")
+
+
+@router.post("/api/reports/due")
+def prepare_if_due():
+    """Called when the team opens the Hub: on a server that sleeps, this is how Monday's report appears."""
+    return {"prepared": ensure_weekly_report() is not None, "next_due": next_due()}
+
+
+@router.post("/api/reports/{report_id}/sent")
+def mark_sent(report_id: int):
+    """A person checked the report and sent it (from Outlook). Clears the Today reminder."""
+    with db.connect() as conn:
+        row = conn.execute("SELECT report_json FROM reports WHERE pk = ?", (report_id,)).fetchone()
+        if row is None:
+            raise HTTPException(404, "Report not found")
+        report = json.loads(row["report_json"]) | {"status": "SENT", "sent_at": db.now()}
+        conn.execute("UPDATE reports SET report_json = ? WHERE pk = ?", (json.dumps(report), report_id))
+    return report | {"id": report_id}
+
+
+def build_report(start: date, end: date, trigger: str) -> dict:
+    # The period is in UAE days; records are stamped in UTC. Only what happened inside the period counts.
+    since = datetime.combine(start, datetime.min.time(), calendar.DUBAI).astimezone(timezone.utc).isoformat(timespec="seconds")
+    until = datetime.combine(end + timedelta(days=1), datetime.min.time(), calendar.DUBAI).astimezone(timezone.utc).isoformat(timespec="seconds")
     with db.connect() as conn:
         records = {r["id"]: r for r in innovation_records(conn)}
         title = lambda sid: (records.get(sid) or {}).get("title") or sid
         events = [dict(row) | {"id": f"SUB-{row['submission_pk']:04d}"} for row in conn.execute(
-            "SELECT * FROM submission_events WHERE created_at >= ? ORDER BY pk", (since,))]
+            "SELECT * FROM submission_events WHERE created_at >= ? AND created_at < ? ORDER BY pk", (since, until))]
 
         # One line per request: where it started the week and where it is now, with the number of steps between.
         moved = {}
@@ -125,7 +173,7 @@ def weekly_report():
         approved = []
         for sid, r in records.items():
             case = ((r.get("research") or {}).get("scale") or {}).get("business_case") or {}
-            if case.get("status") == "APPROVED" and (case.get("decision") or {}).get("at", "") >= since:
+            if case.get("status") == "APPROVED" and since <= (case.get("decision") or {}).get("at", "") < until:
                 approved.append({"id": sid, "title": r["title"], "currency": case["calc"]["currency"],
                                  "one_off": case["calc"]["one_off_total"], "yearly": case["calc"]["yearly_cost_total"]})
         realised = []
@@ -137,11 +185,11 @@ def weekly_report():
                                  "annual": result["realised_annual_value"], "currency": result["currency"]})
 
         meetings_held = [{"id": f"SUB-{m['submission_pk']:04d}", "supplier": m["supplier"], "date": (m["start_at"] or "")[:10]}
-                         for m in conn.execute("SELECT * FROM meetings WHERE status = 'held' AND updated_at >= ?", (since,))]
+                         for m in conn.execute("SELECT * FROM meetings WHERE status = 'held' AND updated_at >= ? AND updated_at < ?", (since, until))]
         overdue = [{"id": f"SUB-{a['submission_pk']:04d}", "action": a["action"], "owner": a["owner"], "due": a["due"]}
                    for a in conn.execute("SELECT * FROM meeting_actions WHERE status = 'open' AND due IS NOT NULL AND due < ?",
                                          (end.isoformat(),))]
-        ai_spend = conn.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM agent_runs WHERE created_at >= ?", (since,)).fetchone()[0]
+        ai_spend = conn.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM agent_runs WHERE created_at >= ? AND created_at < ?", (since, until)).fetchone()[0]
 
     blockers = [item for item in reminders()["items"] if item["severity"] == "high"]
     pipeline = [{"stage": stage["name"], "count": len(stage["cards"])} for stage in portfolio()["stages"]]
@@ -151,7 +199,7 @@ def weekly_report():
              "ai_spend_usd": round(ai_spend, 2)}
     assistant, meter = get_assistant(), []
     summary = assistant.report_summary(facts, meter)
-    report = facts | {"summary": summary, "status": "DRAFT", "generated_at": db.now(),
+    report = facts | {"summary": summary, "status": "DRAFT", "generated_at": db.now(), "trigger": trigger,
                       "generated_by": f"{assistant.name} {assistant.version}"}
     with db.connect() as conn:
         cursor = conn.execute("INSERT INTO reports (period_start, period_end, report_json, created_at) VALUES (?, ?, ?, ?)",
@@ -165,3 +213,15 @@ def list_reports():
     with db.connect() as conn:
         rows = conn.execute("SELECT pk, report_json FROM reports ORDER BY pk DESC LIMIT 10").fetchall()
     return [json.loads(row["report_json"]) | {"id": row["pk"]} for row in rows]
+
+
+async def scheduler(interval_seconds: int = 600):
+    """On an always-on server: check every 10 minutes whether Monday's report is due."""
+    import asyncio
+    from starlette.concurrency import run_in_threadpool
+    while True:
+        try:
+            await run_in_threadpool(ensure_weekly_report)
+        except Exception as error:                    # never let one failure stop the schedule
+            print(f"Weekly report scheduler: {error}")
+        await asyncio.sleep(interval_seconds)

@@ -58,8 +58,10 @@ class MockScaleAssistant:
                 "keywords": clean_keywords(facts.get("keyword_hints", [])), "generated_by": f"{self.name} {self.version}"}
 
     def report_summary(self, facts: dict, meter=None) -> str:
-        return (f"{len(facts['decisions_needed'])} decisions needed, {len(facts['moved'])} requests moved stage, "
-                f"{len(facts['overdue_actions'])} overdue actions this week.")
+        count = lambda n, one, many: f"{n} {one if n == 1 else many}"
+        return (f"{count(len(facts['decisions_needed']), 'decision', 'decisions')} needed, "
+                f"{count(len(facts['moved']), 'request', 'requests')} moved stage, "
+                f"{count(len(facts['overdue_actions']), 'overdue action', 'overdue actions')} this week.")
 
 
 CASE_SYSTEM = """You write the narrative for a business case at a data center operator. The numbers are already \
