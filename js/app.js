@@ -27,7 +27,7 @@ let currentQueue = 'innovation';
 // 2. This is navigation ONLY. It does not enforce real user permissions.
 function switchView(view) {
   currentView = view;
-  for (const name of ['employee', 'reviewer']) {
+  for (const name of ['employee', 'reviewer', 'library']) {
     get(`${name}-view`).hidden = name !== view;
     get(`${name}-nav`).setAttribute('aria-pressed', String(name === view));
   }
@@ -75,7 +75,9 @@ function renderMeasures(m) {
     `<div><strong>${escapeText(value)}</strong><span>${escapeText(label)}</span></div>`).join('');
   get('measures-note').textContent = `Agreement with screening: ${percent(m.agreement_rate)} of ${m.decisions} ${m.decisions === 1 ? 'decision' : 'decisions'} · `
     + `${m.auto_declined} auto-declined, ${m.auto_declines_overturned} overturned on appeal · `
-    + `${m.employee_requested_open} employee-requested reviews waiting. Fewer escalations alone are not counted as success.`;
+    + `${m.employee_requested_open} employee-requested reviews waiting. Fewer escalations alone are not counted as success.`
+    + (m.library_searches ? ` · Library: ${m.library_searches} searches, ${percent(m.library_found_share)} found something`
+      + (m.library_no_results.length ? `; nothing found for “${m.library_no_results.join('”, “')}”` : '') : '');
 }
 
 // 5. Cards. Use escaped text, not raw user-supplied HTML.

@@ -177,6 +177,14 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- Known solutions the assistant can offer before involving the innovation team.
+-- Library searches: only the words, how many results, and when. No user is recorded.
+CREATE TABLE IF NOT EXISTS library_searches (
+    pk         INTEGER PRIMARY KEY AUTOINCREMENT,
+    query      TEXT NOT NULL,
+    results    INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS solutions (
     id       TEXT PRIMARY KEY,
     kind     TEXT NOT NULL DEFAULT 'tool',  -- tool, guidance, active_project or previous_pilot

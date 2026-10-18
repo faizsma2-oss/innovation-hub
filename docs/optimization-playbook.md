@@ -77,7 +77,7 @@ I = impact, C = confidence, E = effort.
 | 2 Checks | ✅ **Done** (labelled set: tools 10/16 → 16/16, similar requests 5/6 → 6/6). **Better matching** of duplicates and lessons (SQLite full-text search instead of exact keywords) | 1 code | 3 | 4 | 1 | **12** |
 | 23 Copilot | ✅ **Done.** New read-only questions: **"what's overdue?"** and **"what needs my decision?"** | 5 Copilot + 1 code | 3 | 4 | 1 | **12** |
 | 22 Reports | ✅ **Done.** **Prepare the weekly report automatically** every Monday morning (UAE week) | 1 code (schedule) | 2 | 5 | 1 | **10** |
-| 21 Lessons | A **lessons library** page, searchable, for the team and employees | 1 code | 2 | 5 | 1 | **10** |
+| 21 Lessons | ✅ **Done.** A **lessons library** page, searchable, for the team and employees | 1 code | 2 | 5 | 1 | **10** |
 | 9–10 Reply → meeting | **Read the supplier's reply** and pre-fill the times they offered into "Book in Outlook" | 2 Claude | 4 | 4 | 2 | **8** |
 | 6, 8 Research | **Reuse** supplier research and contacts from earlier requests instead of searching again (saves cost and time) | 1 code | 3 | 5 | 2 | **7.5** |
 | 4 Screening | **Earned autonomy dashboard**: how often the team agrees with the recommendation, per route | 1 code | 3 | 4 | 2 | **6** |

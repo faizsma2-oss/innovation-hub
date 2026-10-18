@@ -564,3 +564,11 @@ a.button:hover { background: var(--fill-strong); }
 .scores.scenarios td:nth-child(3) { white-space: nowrap; }
 .scores.import-table td:nth-child(2) { white-space: nowrap; color: var(--text); font-weight: 400; }
 .scores.import-table td:nth-child(3) { min-width: 180px; color: var(--text); font-weight: 400; white-space: normal; }
+
+/* ── 23. Library ─────────────────────────────────────────────────────────── */
+.library-search { display: block; width: min(640px, 100%); margin: 26px auto 0; padding: 16px 22px; font-size: 18px;
+  border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); }
+.library-card mark { background: color-mix(in srgb, var(--accent) 25%, transparent); color: inherit; border-radius: 4px; padding: 0 2px; }
+.library-card h3 { margin-top: 6px; }
+.library-empty { grid-column: 1 / -1; text-align: center; padding: 30px 16px; }
+#library-count { margin: 6px 0 14px; }

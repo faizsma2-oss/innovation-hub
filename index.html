@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Innovation Hub · Learning demo</title>
-  <link rel="stylesheet" href="styles/theme.css?v=23">
-  <link rel="stylesheet" href="styles/layout.css?v=23">
+  <link rel="stylesheet" href="styles/theme.css?v=24">
+  <link rel="stylesheet" href="styles/layout.css?v=24">
 </head>
 <body>
 <div class="shell">
@@ -16,6 +16,7 @@
       <nav aria-label="Demo views">
         <button id="employee-nav" aria-pressed="true">Employee</button>
         <button id="reviewer-nav" aria-pressed="false">Innovation team</button>
+        <button id="library-nav" aria-pressed="false">Library</button>
       </nav>
       <span class="pill">DEMO</span>
     </div>
@@ -66,6 +67,20 @@
       <div class="section-title"><h2>Queues</h2></div>
       <div class="queue-tabs" role="tablist" id="queue-tabs"></div>
       <div id="review-list" class="cards"><p class="muted">Loading…</p></div>
+    </section>
+
+    <!-- Library: everything that already exists, searchable by everyone -->
+    <section id="library-view" hidden>
+      <div class="hero">
+        <p class="eyebrow">LIBRARY</p>
+        <h1>Someone may have<br>solved it already.</h1>
+        <p class="intro">Tools, guidance, projects under way, earlier pilots and the lessons learned from them. Search before you start something new.</p>
+        <label for="library-search" class="visually-hidden">Search the library</label>
+        <input id="library-search" class="library-search" type="search" maxlength="200" placeholder="Search, e.g. permits on paper, chiller alarms, visitor badges">
+      </div>
+      <div class="queue-tabs" role="tablist" id="library-kinds"></div>
+      <p class="muted" id="library-count"></p>
+      <div id="library-results" class="cards"></div>
     </section>
 
     <footer>Innovation Hub · Built by Faaizah Ismail · Independent interview demo, not an official Khazna application</footer>
@@ -150,13 +165,14 @@
   <section id="detail-history"></section>
 </dialog>
 
-<script src="js/app.js?v=23"></script>
-<script src="js/intake.js?v=23"></script>
-<script src="js/review.js?v=23"></script>
-<script src="js/research.js?v=23"></script>
-<script src="js/meetings.js?v=23"></script>
-<script src="js/scale.js?v=23"></script>
-<script src="js/portfolio.js?v=23"></script>
-<script src="js/companies.js?v=23"></script>
+<script src="js/app.js?v=24"></script>
+<script src="js/intake.js?v=24"></script>
+<script src="js/review.js?v=24"></script>
+<script src="js/research.js?v=24"></script>
+<script src="js/meetings.js?v=24"></script>
+<script src="js/scale.js?v=24"></script>
+<script src="js/portfolio.js?v=24"></script>
+<script src="js/companies.js?v=24"></script>
+<script src="js/library.js?v=26"></script>
 </body>
 </html>

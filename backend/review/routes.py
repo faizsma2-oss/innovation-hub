@@ -25,6 +25,8 @@ from ..models import (DEMO_USER, INNOVATION_ROUTES, OPEN_STATUSES, ROUTES, ROUTI
 from . import screening
 from .screening import CRITERIA
 
+from ..library.routes import search_stats as library_search_stats  # noqa: E402
+
 router = APIRouter(tags=["review"])
 
 # Demo only: there's no sign-in yet, so every reviewer action is recorded as this person.
@@ -291,7 +293,7 @@ def metrics():
             "employee_requested_open": one(
                 "SELECT COUNT(*) FROM submissions WHERE innovation_track = 'employee_requested' AND status IN"
                 " ('Submitted', 'Routed', 'Under review', 'Needs clarification')"),
-        }
+        } | library_search_stats(conn)
 
 
 def realised_benefits(conn) -> dict:
