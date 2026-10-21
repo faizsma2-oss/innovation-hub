@@ -95,6 +95,43 @@ def propose_solutions(submission_id: str, body: OptionsIn):
         return db.get_submission(conn, submission_id)
 
 
+@router.post("/api/submissions/{submission_id}/solutions/evidence", response_model=SubmissionOut)
+def check_option_evidence(submission_id: str):
+    """On request: check each option's real-world evidence on the web, then re-rank with the verified scores."""
+    from .. import budget, llm
+    from . import evidence
+    with db.connect() as conn:
+        record = load(conn, submission_id)
+        solutions = record.get("solutions") or {}
+        if record["status"] != "Accepted" or not solutions.get("options"):
+            raise HTTPException(409, "Check the evidence once options are prepared, before one is selected")
+        meter = []
+        try:
+            checked = evidence.check_evidence(record, solutions["options"], meter)
+        except evidence.Unavailable:
+            reason = budget.status().get("blocked") or "The AI assistant isn't switched on here."
+            raise HTTPException(409, f"{reason} The web check needs it, so nothing changed.")
+        except (llm.LLMError, KeyError, TypeError) as error:
+            raise HTTPException(502, f"The web check didn't work ({str(error)[:150]}), so nothing changed. Try again later.")
+        for option in solutions["options"]:
+            result = checked["options"][option["id"]]
+            before = option["scores"]["evidence"]["value"]
+            if result["score"]:
+                option["scores"]["evidence"] = {"value": result["score"], "reason": f"Web check: {result['reason']}"}
+            option["evidence_check"] = result | {"before": before, "after": option["scores"]["evidence"]["value"]}
+        rank(solutions["options"])
+        solutions["evidence_check"] = {k: checked[k] for k in ("summary", "sources_retrieved", "generated_by")} | {
+            "checked_at": db.now(), "cost_usd": round(sum(m.get("cost_usd", 0) for m in meter), 4)}
+        pk = db.parse_pk(submission_id)
+        conn.execute("UPDATE submissions SET solutions_json = ? WHERE pk = ?", (json.dumps(solutions), pk))
+        log_run(conn, "option_evidence", submission_id, type("Checker", (), {"name": "claude", "version": evidence.VERSION}),
+                meter, {"sources": checked["sources_retrieved"]})
+        db.add_event(conn, pk, "research-ai", "options_evidence_checked", None, None,
+                     "; ".join(f"{o['title']}: evidence {o['evidence_check']['before']} → {o['evidence_check']['after']}"
+                               f" ({len(o['evidence_check']['findings'])} sources)" for o in solutions["options"]))
+        return db.get_submission(conn, submission_id)
+
+
 @router.post("/api/submissions/{submission_id}/solutions/select", response_model=SubmissionOut)
 def select_solution(submission_id: str, body: SelectIn):
     with db.connect() as conn:

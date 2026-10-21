@@ -703,3 +703,10 @@ footer { margin-top: 64px; }
 .reminder-icon { display: none; }          /* the coloured edge already shows urgency */
 .reminder { padding: 12px 16px; }
 .notice-inline { margin: 8px 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; color: var(--text); background: var(--fill); }
+
+/* ── 31. Evidence checked on the web ─────────────────────────────────────── */
+.evidence-row { margin: 10px 0 4px; }
+.evidence-box { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--fill); font-size: 14px; }
+.evidence-box p { margin: 0 0 4px; }
+.evidence-box ul { margin: 4px 0; padding-left: 18px; display: grid; gap: 4px; }
+.evidence-box a { color: var(--accent); }

@@ -77,6 +77,11 @@ function solutionsHtml(record) {
       <p class="muted">Round ${s.round} · ${escapeText(s.generated_by)}${s.feedback ? ` · after feedback: “${escapeText(s.feedback)}”` : ''}</p>
     </div>
     <p class="comparison-text">${escapeText(s.comparison)}</p>
+    ${s.evidence_check ? `<p class="notice-inline">Evidence checked on the web ${escapeText(fmtDay(s.evidence_check.checked_at))}:
+        ${escapeText(s.evidence_check.summary)} <span class="muted">${s.evidence_check.sources_retrieved} pages opened · $${s.evidence_check.cost_usd.toFixed(2)}</span></p>` : ''}
+    <div class="inline-row evidence-row"><button type="button" id="evidence-button">${s.evidence_check ? 'Check the evidence again' : 'Check the evidence on the web'}</button>
+      <span class="muted">Searches for case studies and reports on each approach (1–2 minutes, about 30–50 cents). Only pages it opened count as sources.</span></div>
+    <p id="evidence-error" class="error-text" role="alert"></p>
     <div class="option-list">${s.options.map(optionCard).join('')}</div>
     ${matrixHtml(s.options)}
     <details class="ask-again"><summary>Ask for different options</summary>
@@ -100,6 +105,7 @@ function optionCard(option) {
     ${existingToolsBadge(option)}
     <p>${escapeText(option.summary)}</p>
     <p class="muted">${escapeText(option.how_it_helps)}</p>
+    ${option.evidence_check ? evidenceHtml(option.evidence_check) : ''}
     <div class="pros-cons">
       <div><h5>Pros</h5><ul class="pros">${option.pros.map(p => `<li>${escapeText(p)}</li>`).join('')}</ul></div>
       <div><h5>Cons</h5><ul class="cons">${option.cons.map(c => `<li>${escapeText(c)}</li>`).join('')}</ul></div>
@@ -114,6 +120,18 @@ function optionCard(option) {
       <button type="submit" class="${option.rank === 1 ? 'primary' : ''}">Select and start research</button>
     </form>
   </article>`;
+}
+
+const fmtDay = iso => iso ? new Date(iso).toLocaleDateString([], {day: 'numeric', month: 'short'}) : '';
+
+function evidenceHtml(e) {
+  const changed = e.after !== e.before;
+  return `<div class="evidence-box">
+    <p><strong>Evidence ${changed ? `${e.before} → ${e.after}` : `${e.after} (unchanged)`}</strong>
+      <span class="muted">· ${e.findings.length} ${e.findings.length === 1 ? 'source' : 'sources'}</span></p>
+    ${e.findings.length ? `<ul>${e.findings.map(f => `<li>${escapeText(f.claim)}
+      <a href="${escapeText(f.url)}" target="_blank" rel="noopener noreferrer">${escapeText(new URL(f.url).hostname.replace(/^www\./, ''))}</a></li>`).join('')}</ul>` : ''}
+    <p class="muted">${escapeText(e.reason)}</p></div>`;
 }
 
 function matrixHtml(options) {
@@ -174,6 +192,12 @@ function wireResearch(record) {
   wireLicensedTools();
   if (get('propose-button')) get('propose-button').onclick = () => proposeOptions(record.id);
   if (get('ask-again-button')) get('ask-again-button').onclick = () => proposeOptions(record.id, get('feedback-text').value);
+  if (get('evidence-button')) get('evidence-button').onclick = async () => {
+    const button = get('evidence-button');
+    button.disabled = true; button.textContent = 'Searching the web… (1–2 minutes)';
+    const ok = await sendReviewAction(`/api/submissions/${record.id}/solutions/evidence`, undefined, record.id, 'evidence-error');
+    if (!ok) { button.disabled = false; button.textContent = 'Check the evidence on the web'; }
+  };
   for (const form of document.querySelectorAll('.select-form')) {
     form.onsubmit = async event => {
       event.preventDefault();
