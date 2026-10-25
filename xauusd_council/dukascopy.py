@@ -6,7 +6,9 @@ There is one file per day:
 midnight, then open, close, low and high in thousandths of a dollar, then the volume. Minutes with no
 trading are stored as flat zero-volume candles, and are dropped here.
 
-Downloaded days are kept in a cache folder, so an interrupted download picks up where it stopped.
+Downloaded days are kept in a cache folder, so an interrupted download picks up where it stopped. A
+day whose file arrives corrupted is downloaded once more, then skipped; if more than 2% of days fail,
+the download stops. Prices are checked against gold's real range, so a wrong scale can't slip through.
 """
 import lzma
 import time
@@ -23,6 +25,13 @@ RECORD = np.dtype([("seconds", ">u4"), ("open", ">u4"), ("close", ">u4"), ("low"
                    ("volume", ">f4")])
 POINT = 1000  # XAUUSD prices are stored in thousandths of a dollar
 HEADERS = {"User-Agent": "Mozilla/5.0 (xauusd-council)"}
+MAX_SKIPPED = 0.02  # share of days that may fail to download before the whole download stops
+
+
+def gold_range(day: date) -> tuple[float, float]:
+    """Where gold's price has been: never below $900 since 2010, never above $10,000. Catches a
+    price read ten times too big or too small."""
+    return (900.0 if day.year >= 2010 else 250.0), 10_000.0
 
 
 def parse_day(raw: bytes, day: date) -> pd.DataFrame:
@@ -41,13 +50,19 @@ def parse_day(raw: bytes, day: date) -> pd.DataFrame:
     }, index=start + pd.to_timedelta(records["seconds"].astype(np.int64), unit="s"))
     if len(bars):
         sane = (bars["low"] <= bars[["open", "close"]].min(axis=1)) & (bars["high"] >= bars[["open", "close"]].max(axis=1))
-        if sane.mean() < 0.99 or not 100 < bars["close"].median() < 100_000:
-            raise ValueError(f"{day}: candles don't look like XAUUSD; the file layout may have changed")
+        low, high = gold_range(day)
+        if sane.mean() < 0.99 or not low < bars["close"].median() < high:
+            raise ValueError(f"{day}: candles don't look like XAUUSD (median close {bars['close'].median():.2f}); "
+                             f"the file layout may have changed")
     return bars
 
 
+def _cached(day: date, symbol: str, side: str, cache: Path) -> Path:
+    return cache / f"{symbol}_{side}_{day.isoformat()}.bi5"
+
+
 def _download(day: date, symbol: str, side: str, cache: Path) -> bytes:
-    path = cache / f"{symbol}_{side}_{day.isoformat()}.bi5"
+    path = _cached(day, symbol, side, cache)
     if path.exists():
         return path.read_bytes()
     url = URL.format(symbol=symbol, year=day.year, month=day.month - 1, day=day.day, side=side)
@@ -75,15 +90,35 @@ def fetch(start: date, end: date, out: Path, symbol: str = "XAUUSD", side: str =
     cache.mkdir(parents=True, exist_ok=True)
     days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
     days = [day for day in days if day.weekday() != 5]  # nothing trades on Saturday (UTC)
-    frames = []
+
+    def one_day(day: date) -> pd.DataFrame | None:
+        for _ in range(2):
+            try:
+                return parse_day(_download(day, symbol, side, cache), day)
+            except lzma.LZMAError:  # a corrupted download: fetch it again once
+                _cached(day, symbol, side, cache).unlink(missing_ok=True)
+            except requests.RequestException:  # still failing after retries: skip the day
+                return None
+        return None
+
+    frames, skipped = [], []
+    if progress:
+        progress(f"  {len(days)} days to read (already downloaded days come from {cache})")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        for i, (day, raw) in enumerate(zip(days, pool.map(lambda d: _download(d, symbol, side, cache), days))):
-            frames.append(parse_day(raw, day))
-            if progress and (i + 1) % 50 == 0:
+        for i, (day, frame) in enumerate(zip(days, pool.map(one_day, days))):
+            if frame is None:
+                skipped.append(day)
+            elif len(frame):
+                frames.append(frame)
+            if progress and (i + 1) % 100 == 0:
                 progress(f"  {i + 1}/{len(days)} days ({day})")
-    bars = pd.concat([f for f in frames if len(f)]).sort_index() if any(len(f) for f in frames) else None
-    if bars is None:
+    if len(skipped) > MAX_SKIPPED * len(days):
+        raise ValueError(f"{len(skipped)} of {len(days)} days couldn't be read from Dukascopy; try again later")
+    if skipped and progress:
+        progress(f"  skipped {len(skipped)} unreadable days: {', '.join(map(str, skipped[:5]))}")
+    if not frames:
         raise ValueError("Dukascopy returned no candles for those dates")
+    bars = pd.concat(frames).sort_index()
     out.parent.mkdir(parents=True, exist_ok=True)
     bars.index.name = "time"
     bars.to_csv(out, date_format="%Y-%m-%dT%H:%M:%SZ")

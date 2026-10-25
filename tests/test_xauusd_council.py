@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from xauusd_council import __main__ as cli
+from xauusd_council import dukascopy
 from xauusd_council.backtest import Costs, Lab, exits
 from xauusd_council.board import Review
 from xauusd_council.bots import Bot, PERSONA_BY_KEY, roster
@@ -203,6 +204,44 @@ def test_dukascopy_day_file():
     scrambled["low"], scrambled["high"] = rows["high"], rows["low"]
     with pytest.raises(ValueError):
         parse_day(lzma.compress(scrambled.tobytes(), format=lzma.FORMAT_ALONE), pd.Timestamp("2024-01-02").date())
+
+
+def day_file(price: float, minutes: int = 3) -> bytes:
+    rows = np.zeros(minutes, dtype=RECORD)
+    rows["seconds"] = np.arange(minutes) * 60
+    rows["open"] = rows["close"] = rows["low"] = rows["high"] = int(price * 1000)
+    rows["high"] += 500
+    rows["volume"] = 1.0
+    return lzma.compress(rows.tobytes(), format=lzma.FORMAT_ALONE)
+
+
+def test_dukascopy_download(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_get(url, headers, timeout):
+        calls.append(url)
+        if "/2024/00/03/" in url:  # 3 January arrives corrupted every time
+            return SimpleNamespace(status_code=200, content=b"not lzma", raise_for_status=lambda: None)
+        if "/2024/00/07/" in url:  # a Sunday with no file
+            return SimpleNamespace(status_code=404, content=b"", raise_for_status=lambda: None)
+        return SimpleNamespace(status_code=200, content=day_file(2050.0), raise_for_status=lambda: None)
+
+    monkeypatch.setattr(dukascopy.requests, "get", fake_get)
+    start, end = pd.Timestamp("2024-01-01").date(), pd.Timestamp("2024-03-31").date()
+    out = dukascopy.fetch(start, end, tmp_path / "xauusd_m1.csv", progress=None)
+    bars = load_csv(out)
+    assert len(bars) == 3 * (78 - 1 - 1)  # weekdays and Sundays, minus the corrupted day and the missing Sunday
+    assert "/2024/00/01/BID_candles_min_1.bi5" in calls[0] and not any("/2024/00/06/" in url for url in calls)
+    assert sum("/2024/00/03/" in url for url in calls) == 2  # retried once, then skipped
+    before = len(calls)
+    dukascopy.fetch(start, end, tmp_path / "again.csv", progress=None)
+    assert len(calls) - before == 2  # cached days aren't downloaded again; the corrupted one is retried
+
+    monkeypatch.setattr(dukascopy.requests, "get", lambda url, headers, timeout: SimpleNamespace(
+        status_code=200, content=day_file(205.0), raise_for_status=lambda: None))
+    with pytest.raises(ValueError, match="don't look like XAUUSD"):  # a price read ten times too small
+        dukascopy.fetch(pd.Timestamp("2025-01-06").date(), pd.Timestamp("2025-01-06").date(), tmp_path / "x.csv",
+                        cache=tmp_path / "other-cache", progress=None)
 
 
 # ── The council ──────────────────────────────────────────────────────────────

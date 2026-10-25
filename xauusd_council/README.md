@@ -6,7 +6,15 @@ It's a research tool, not a trading system. Read [Caveats](#caveats) before trad
 
 ## Run it
 
-From the repository root, with the project's virtual environment active (`pip install -r requirements.txt` adds `numpy` and `pandas`):
+**On a Mac, one command does everything:** it sets up Python, downloads real XAUUSD prices from 2020, convenes 8 bots for 3 rounds and opens the transcript. The first download takes a few minutes; later runs only fetch new days.
+
+```bash
+bash scripts/run_xauusd_council.sh
+```
+
+It uses the scripted bots, which are free. Add `--brain claude` to have Claude drive them: that needs `ANTHROPIC_API_KEY` in `.env`, and costs an estimated $1–2 a run. `START=2018-01-01 BOTS=12 bash scripts/run_xauusd_council.sh` changes the start date and the number of bots.
+
+Step by step, from the repository root, with the project's virtual environment active (`pip install -r requirements.txt` adds `numpy` and `pandas`):
 
 ```bash
 # 1. Try it on synthetic gold-like data (about 10 seconds; the result means nothing for real trading)
