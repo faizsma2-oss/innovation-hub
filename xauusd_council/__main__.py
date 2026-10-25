@@ -108,7 +108,8 @@ def main(argv=None) -> int:
             return 0
         if args.command == "demo":
             bars = bars_from.synthetic(days=int(args.years * 365), seed=args.seed, edge=args.edge)
-            return convene(bars, args, f"Synthetic gold, {args.years:g} years (not real prices)")
+            planted = f", with a planted breakout pattern of strength {args.edge:g}" if args.edge else ""
+            return convene(bars, args, f"Synthetic gold, {args.years:g} years{planted} (not real prices)")
         bars = bars_from.load_csv(args.data, tz=args.tz)
         return convene(bars, args, f"{Path(args.data).name}")
     except (ValueError, RuntimeError) as error:
