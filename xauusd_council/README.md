@@ -104,6 +104,19 @@ Every rule also has `stop_atr`, `target_r` (as a multiple of the stop), an optio
 - **The holdout gate.** On pure noise, no council passed: 0 of 24 quick councils (4 bots, 1.4 and 3 years of data) and 0 of 3 full councils (8 bots, 3 years). Before the t-stat requirement was added, 1 of the same 24 passed, with a holdout t-stat of 0.71. On data with a planted breakout pattern, the council chose an opening-range breakout and passed the holdout in 6 of 6 runs (holdout t-stats 3.4 to 6.1).
 - **It counts its own searching.** The transcript says how many rule variants were tried on the training data. A council that tried 1,500 variants will always find something that looks good there. That is why only the holdout counts.
 
+## Forward journal
+
+The holdout has already been used to check the rule, so the days after it are the one clean test left. To log them:
+
+```bash
+python -m xauusd_council fetch --start 2020-01-01
+python -m xauusd_council journal --rule data/council/real-<run>/result.json
+```
+
+This appends each newly closed session to `data/journal.csv`, in the guide's columns. A session is logged only once its 17:00 close is in the data, so no row uses bars that didn't exist yet. Fill in `signal_score`, `simulated_size`, `rule_followed`, `actual_entry`, `actual_exit` and `notes` by hand; reruns keep them. Always use the same `result.json`: rerunning the council produces a different rule.
+
+At about 34 trades a year, a meaningful forward sample takes a long time to build. Treat the journal as a running record, not a quick verdict.
+
 ## Caveats
 
 - **Not yet run on real gold prices.** It was built in an environment that couldn't reach any price feed. The Dukascopy downloader's file parsing is tested on a constructed file, not a live download. If a download fails or the prices look wrong, the downloader stops with an error instead of guessing.
@@ -124,5 +137,6 @@ Every rule also has `stop_atr`, `target_r` (as a multiple of the stop), an optio
 | `council.py` | The meeting: proposals, debate, vote, holdout verdict |
 | `board.py`, `report.py` | Messages and candidates; the Markdown transcript and JSON record |
 | `data.py`, `dukascopy.py` | CSV loading and resampling, synthetic data; the Dukascopy downloader |
+| `journal.py` | The forward journal: days after the holdout, logged only once their session has closed |
 
 Tests: `python -m pytest tests/test_xauusd_council.py` (about 10 seconds). They never call Claude or the network.

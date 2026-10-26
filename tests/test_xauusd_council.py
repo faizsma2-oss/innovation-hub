@@ -403,3 +403,38 @@ def test_grounded_numbers():
     assert grounded("PF 1.23 over 812 trades, 41% winners, t-stat -2.05, 3 of 4 quarters.", evidence)
     assert not grounded("PF 1.40.", evidence)
     assert not grounded("It made 250 trades.", evidence)
+
+
+# ── The forward journal ──────────────────────────────────────────────────────
+
+def test_journal_logs_closed_sessions_once_and_keeps_your_notes(tmp_path):
+    from xauusd_council.journal import session_closed, update
+    rule = {"setup": "session_momentum", "params": {"delay_minutes": 30, "momentum_atr": 0.6},
+            "sessions": ["london", "new_york"], "direction": "both", "stop_atr": 0.6, "target_r": 2.0,
+            "trend_ema": 300, "vol_filter": 0.0}
+    bars = synthetic(days=500, seed=9, edge=0.1)
+    bars.index.name = "time"
+    cut = pd.Timestamp("2021-12-01 10:00", tz="Europe/London").tz_convert("UTC")  # mid-session on the last day
+    bars = bars[bars.index <= cut]
+    data = tmp_path / "bars.csv"
+    bars.to_csv(data, date_format="%Y-%m-%dT%H:%M:%SZ")
+    end = load_csv(data).index.max()
+    record = tmp_path / "result.json"
+    record.write_text(json.dumps({"rule": rule, "data": {"holdout": ["2021-02-01", "2021-06-30"]}}))
+    journal = tmp_path / "journal.csv"
+
+    added, total, _ = update(record, data, journal)
+    assert added > 0 and total == added
+    rows = pd.read_csv(journal, dtype=str, keep_default_na=False)
+    assert rows["date"].min() > "2021-06-30"  # only days after the holdout
+    for date, session in zip(rows["date"], rows["session"]):
+        assert session_closed(int(np.datetime64(date, "D").astype(np.int64)), session, end)
+    assert not (rows["date"] == "2021-12-01").any()  # the last day stops at 10:00 London, before any close
+
+    rows.loc[0, "rule_followed"] = "yes"
+    rows.loc[0, "notes"] = "took it on demo"
+    rows.to_csv(journal, index=False)
+    again, total_again, _ = update(record, data, journal)
+    assert again == 0 and total_again == total  # nothing new until more data arrives
+    kept = pd.read_csv(journal, dtype=str, keep_default_na=False)
+    assert kept.loc[0, "rule_followed"] == "yes" and kept.loc[0, "notes"] == "took it on demo"

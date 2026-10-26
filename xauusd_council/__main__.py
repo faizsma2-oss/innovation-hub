@@ -98,8 +98,21 @@ def main(argv=None) -> int:
     fetch.add_argument("--end", type=date.fromisoformat, default=date.today(), help="last day (default today)")
     fetch.add_argument("--out", default=str(PROJECT_ROOT / "data" / "xauusd_m1.csv"))
 
+    journal = commands.add_parser("journal", help="log what the frozen rule does on days after its holdout")
+    journal.add_argument("--rule", required=True, help="result.json of the council run whose rule you froze")
+    journal.add_argument("--since", help="first day to log (default: the day after that run's holdout ends)")
+    journal.add_argument("--data", default=str(PROJECT_ROOT / "data" / "xauusd_m1.csv"))
+    journal.add_argument("--out", default=str(PROJECT_ROOT / "data" / "journal.csv"))
+    journal.add_argument("--spread", type=float, default=0.30)
+    journal.add_argument("--slippage", type=float, default=0.10)
+
     args = parser.parse_args(argv)
     try:
+        if args.command == "journal":
+            from .journal import update
+            added, total, added_r = update(args.rule, args.data, args.out, args.since, args.spread, args.slippage)
+            print(f"Added {added} closed sessions ({added_r:+.2f}R). The journal now has {total}: {args.out}")
+            return 0
         if args.command == "fetch":
             from .dukascopy import fetch as download
             print(f"Downloading XAUUSD {args.start} to {args.end} from Dukascopy...")
@@ -112,6 +125,9 @@ def main(argv=None) -> int:
             return convene(bars, args, f"Synthetic gold, {args.years:g} years{planted} (not real prices)")
         bars = bars_from.load_csv(args.data, tz=args.tz)
         return convene(bars, args, f"{Path(args.data).name}")
+    except FileNotFoundError as error:
+        print(f"error: {error.filename} not found. Run fetch first, or check the path.", file=sys.stderr)
+        return 2
     except (ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
