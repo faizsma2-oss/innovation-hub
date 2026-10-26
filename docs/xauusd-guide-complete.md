@@ -46,7 +46,7 @@ Worked on the 2024-09-30 New York sell as an example. This is a historical examp
 | Are entry, stop and exit rules present? | Yes. Entry 2637.68, stop 2656.89, target 2599.25 (2R), exit at 17:00 at the latest. |
 | Is the position within the risk cap? | Yes. 2.60 oz × $19.21 = $49.95, within $50. |
 | Is any required data missing? | No. All four inputs are present. |
-| Has a human reviewed the plan? | **Pending: you.** |
+| Has a human reviewed the plan? | **No.** No person has reviewed this plan yet. Review it before relying on it. |
 
 ## Step 5: trade log
 
@@ -120,7 +120,7 @@ This row records the holdout test of the rule. Missing fields are marked MISSING
 
 ## What remains, in order
 
-1. **You:** decide the daily-loss cap: keep $100, or change it to $110 (Step 4 flag).
+1. **You:** decide the daily-loss cap: keep $100, or change it to $110 (Step 4 flag). Then review the Step 4 plan, since no human has reviewed it yet.
 2. **You:** check the broker's minimum position size (Step 3).
 3. **You:** after each trading day, run `fetch` and `journal`, and fill in the hand columns (Step 5).
 4. **You:** after the first full month of journal rows, run the monthly review (Step 6).
