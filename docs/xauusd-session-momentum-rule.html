@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>XAUUSD Session Momentum Rule</title>
+<style>
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+:root { --ink: #1d1b17; --muted: #5d574c; --line: #d9d0bd; --paper: #fffdf8; --gold: #8f6b10; --soft: #f4ecd6; --bad: #8c2f2f; --ok: #2d6a3c; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: var(--paper); font: 10.2pt/1.5 "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; }
+h1 { font: 700 24pt/1.15 "Source Serif 4", Georgia, serif; margin: 0 0 4pt; }
+h2 { font: 600 14pt/1.25 "Source Serif 4", Georgia, serif; margin: 20pt 0 6pt; padding-top: 8pt; border-top: 1px solid var(--line); break-after: avoid; }
+h3 { font: 600 11pt/1.3 "Source Serif 4", Georgia, serif; margin: 12pt 0 4pt; break-after: avoid; }
+p { margin: 0 0 6pt; }
+ul, ol { margin: 0 0 6pt 16pt; padding: 0; }
+li { margin-bottom: 2pt; }
+.kicker { font: 500 8.5pt/1.2 "IBM Plex Mono", Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 6pt; }
+.meta { color: var(--muted); font-size: 9pt; margin-bottom: 10pt; }
+.label { border-left: 3pt solid var(--gold); background: var(--soft); padding: 8pt 10pt; margin: 10pt 0; }
+table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 9.2pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+th, td { border-bottom: 1px solid var(--line); padding: 4pt 6pt; text-align: left; vertical-align: top; }
+th { font-weight: 600; background: var(--soft); }
+td.num, th.num { text-align: right; font-family: "IBM Plex Mono", Menlo, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+code, .mono { font: 9pt "IBM Plex Mono", Menlo, monospace; }
+.box { border: 1px solid var(--line); padding: 8pt 10pt; margin: 8pt 0; break-inside: avoid; }
+.warn { color: var(--bad); }
+.ok { color: var(--ok); }
+.small { font-size: 8.8pt; color: var(--muted); }
+.formula { font: 9.4pt "IBM Plex Mono", Menlo, monospace; background: #fbf8f0; border: 1px solid var(--line); padding: 6pt 8pt; margin: 6pt 0; break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<div class="kicker">Simulation &middot; Backtest &middot; Not financial advice</div>
+<h1>XAUUSD Session Momentum Rule</h1>
+<div class="meta">Full specification of the rule as tested, with its results, limits and known problems. Prepared 26 October 2026. Council run <code>real-20261026-095550</code>.</div>
+
+<div class="label">
+<p><strong>What this document is.</strong> It describes one rule, called C4 in the council run, in enough detail that anyone can reproduce its signals, results and limits. Every figure comes from the code in the repository or from the saved runs named here.</p>
+<p><strong>What it is not.</strong> It is not a trading signal, a recommendation or financial advice. The rule has been tested on historical data only. A forward test on data nobody has looked at has not started. Read section 14 before drawing any conclusion.</p>
+</div>
+
+<h2>1. The rule at a glance</h2>
+<table>
+<tr><th style="width:30%">Item</th><th>Rule</th></tr>
+<tr><td>Market</td><td>XAUUSD (gold against the US dollar), Dukascopy bid prices.</td></tr>
+<tr><td>Timeframe</td><td>Five-minute bars, built from one-minute candles.</td></tr>
+<tr><td>Sessions</td><td>London 08:00 to 17:00 Europe/London. New York 08:00 to 17:00 America/New_York.</td></tr>
+<tr><td>Decision time</td><td>08:30 local time in each session, 30 minutes after the open, using the close of the 08:25 to 08:30 bar.</td></tr>
+<tr><td>Direction</td><td>Buy or sell, decided by the price move since the pre-session start and by a 300-bar trend filter.</td></tr>
+<tr><td>Stop</td><td>0.6 × daily ATR from the entry price.</td></tr>
+<tr><td>Target</td><td>2 × the stop distance from the entry price.</td></tr>
+<tr><td>Exit</td><td>The first of: stop, target, or the 17:00 session close.</td></tr>
+<tr><td>Trades per session</td><td>At most one. Up to two per day, one per session.</td></tr>
+<tr><td>Costs</td><td>$0.30 spread on every trade. $0.10 slippage on stop exits. Both per ounce.</td></tr>
+<tr><td>Result unit</td><td>R: profit or loss divided by the stop distance (the amount risked).</td></tr>
+</table>
+
+<h2>2. Market and data</h2>
+<p>Prices come from Dukascopy's public feed of XAUUSD one-minute bid candles, stored in UTC. The downloader reads one file per day. It keeps each candle's open, high, low, close and volume, and drops minutes with zero volume. Those minutes are treated as having no trading. The loader also checks that prices fall inside gold's real range (above $900 from 2010 onward, below $10,000) so that a wrongly scaled file cannot pass.</p>
+<p>The one-minute candles are combined into five-minute bars labelled by their opening time. A five-minute bar is only as complete as the one-minute candles inside it, so a bar can be missing or partial if a minute was dropped.</p>
+<table>
+<tr><th>Item</th><th class="num">Value</th></tr>
+<tr><td>Days to read (2020-01-01 to 2026-10-26, weekdays and Sundays)</td><td class="num">2,135</td></tr>
+<tr><td>Days read</td><td class="num">2,093</td></tr>
+<tr><td>Days skipped as unreadable</td><td class="num">42 (the first were 8, 9, 12, 13 and 14 January 2020)</td></tr>
+<tr><td>Five-minute bars used</td><td class="num">474,107</td></tr>
+<tr><td>Trading data used</td><td class="num">2020-01-28 to 2026-10-23</td></tr>
+<tr><td>London session-days kept</td><td class="num">1,714</td></tr>
+<tr><td>New York session-days kept</td><td class="num">1,660</td></tr>
+</table>
+<p>A session-day is kept only if at least 80% of its five-minute bars exist. The first weeks of data are used only to warm up the ATR and the EMA. The first trade in the training list is on 3 February 2020.</p>
+
+<h2>3. Sessions and time zones</h2>
+<p>Each session runs from 08:00 to 17:00 in its own local time zone. The zone is handled by the time-zone database, so daylight saving moves the session in UTC automatically. For example, in March 2024 New York opens at 12:00 UTC and London at 08:00 UTC, while in other weeks New York opens at 13:00 UTC. Weekends are excluded: a session needs a Monday to Friday local date.</p>
+<p>Each session is a grid of 108 five-minute bars (9 hours). The bars are indexed from 0 at 08:00 to 107 at 16:55. The decision bar is index 5, the bar that ends at 08:30.</p>
+
+<h2>4. Daily ATR</h2>
+<p>The ATR measures the typical range of a trading day, and it sets every distance in the rule. It is calculated as follows.</p>
+<ol>
+<li>A trading day runs from 17:00 New York time to 17:00 New York time the next day. Each one-minute candle is assigned to the day that its time falls in.</li>
+<li>For each trading day, take the high, low and close.</li>
+<li>True range for a day is the largest of: high minus low; high minus the previous day's close (its absolute value); low minus the previous day's close (its absolute value).</li>
+<li>The ATR for a day is the average of the true range over the 14 trading days before it. It uses earlier days only.</li>
+</ol>
+<div class="formula">ATR(today) = mean of TrueRange over the 14 trading days before today</div>
+<p>The rule uses ATR as it stood before the session began. Nothing from the decision day itself is used.</p>
+
+<h2>5. The 08:30 decision</h2>
+<h3>5.1 Pre-session start price</h3>
+<p>The pre-session start price is the open of the first five-minute bar in the window below.</p>
+<ul>
+<li><strong>London:</strong> from 00:00 to 08:00 London time on the same date. This is the Asian session.</li>
+<li><strong>New York:</strong> from 08:00 London time to 08:00 New York time. This is the London morning, on the same calendar date.</li>
+</ul>
+<h3>5.2 Move</h3>
+<div class="formula">Move = close of the 08:30 bar − pre-session start price</div>
+<p>The move is compared with the ATR as a multiple: Move in ATR = Move ÷ ATR.</p>
+<h3>5.3 Trend filter</h3>
+<p>A 300-bar exponential moving average (EMA) of five-minute closes is calculated across the whole series, with smoothing factor 2 ÷ (300 + 1). The filter uses the EMA value at the 08:30 bar.</p>
+<h3>5.4 Entry conditions</h3>
+<table>
+<tr><th>Side</th><th>All of these must hold at the 08:30 bar</th></tr>
+<tr><td><strong>Buy</strong></td><td>Move ≥ +0.6 × ATR, and the 08:30 close is above the 300-bar EMA.</td></tr>
+<tr><td><strong>Sell</strong></td><td>Move ≤ −0.6 × ATR, and the 08:30 close is below the 300-bar EMA.</td></tr>
+<tr><td>Neither</td><td>No trade in that session.</td></tr>
+</table>
+<p>The entry price is the 08:30 close. No slippage is added to the entry, but the spread is charged on the trade (section 7).</p>
+
+<h2>6. Stop, target and exit</h2>
+<table>
+<tr><th style="width:24%">Item</th><th>Definition</th></tr>
+<tr><td>Stop distance</td><td>0.6 × ATR (the ATR from section 4).</td></tr>
+<tr><td>Stop price</td><td>Entry minus the stop distance for a buy; entry plus it for a sell.</td></tr>
+<tr><td>Target distance</td><td>2 × the stop distance.</td></tr>
+<tr><td>Target price</td><td>Entry plus the target distance for a buy; entry minus it for a sell.</td></tr>
+<tr><td>Checked bars</td><td>Only the bars after the entry bar (from 08:35 onward) can hit the stop or the target.</td></tr>
+<tr><td>Stop hit</td><td>The bar's low is at or below the stop for a buy, or its high is at or above the stop for a sell.</td></tr>
+<tr><td>Target hit</td><td>The bar's high is at or above the target for a buy, or its low is at or below the target for a sell.</td></tr>
+<tr><td>Both hit in one bar</td><td>Counted as a stop.</td></tr>
+<tr><td>Gap through the stop</td><td>If the bar opens beyond the stop, the stop fills at that bar's open, which is worse than the stop price.</td></tr>
+<tr><td>Gap through the target</td><td>If the bar opens beyond the target, the target fills at that bar's open, which is better than the target price.</td></tr>
+<tr><td>Session close</td><td>If neither is hit, the trade closes at the close of the last bar of the session (the 16:55 bar), which is the 17:00 close.</td></tr>
+<tr><td>Missing bars</td><td>A missing bar cannot trigger a stop or target. See section 13.</td></tr>
+</table>
+<p>Slippage of $0.10 per ounce is charged on stop exits, always against the trader. It is not charged on target or session-close exits.</p>
+
+<h2>7. Costs and the R result</h2>
+<div class="formula">R = ( direction × (exit price − entry price) − spread ) ÷ stop distance<br>
+direction = +1 for a buy, −1 for a sell<br>
+spread = $0.30 per ounce, once per trade<br>
+exit price for a stop = stop fill − direction × $0.10</div>
+<p>A full stop with no gap gives about −1.03R, because of the spread and slippage. A target gives about +1.98R. These are the figures in the trade lists.</p>
+
+<h2>8. Filters that are switched off</h2>
+<p>The rule supports two more filters. Both are switched off in C4:</p>
+<ul>
+<li><strong>Volatility filter:</strong> off (threshold 0.0). When on, it would skip days whose ATR is below a set multiple of its 50-day median.</li>
+<li><strong>Trend filter:</strong> on, as described in section 5.3.</li>
+</ul>
+<p>The following are <strong>not</strong> part of the rule: trade volume, the signal score from the step 2 scoring model, news, weekdays, time of year, and any manual judgement.</p>
+
+<h2>9. Simulation settings</h2>
+<p>These are settings for the simulation, not part of the market rule. They were confirmed by the user on 26 October 2026.</p>
+<table>
+<tr><th style="width:34%">Setting</th><th>Value and meaning</th></tr>
+<tr><td>Simulated balance</td><td>$10,000. Kept fixed during the test.</td></tr>
+<tr><td>Risk per trade</td><td>0.5% of the balance, which is $50.00.</td></tr>
+<tr><td>Position size</td><td>$50.00 ÷ stop distance in dollars per ounce, rounded to 0.01 oz. Example: a stop distance of $19.21 gives 2.60 oz.</td></tr>
+<tr><td>Dollar result</td><td>R × $50.00 for each trade. This holds because the risk is fixed at $50 per trade.</td></tr>
+<tr><td>Maximum open positions</td><td>2, one per session. London and New York overlap for about four hours a day.</td></tr>
+<tr><td>Maximum simulated daily loss</td><td>$100 (1%), kept by the user's decision. A day where both sessions stop out loses about $103 with costs, so the cap can be exceeded by about $3. The cap cannot stop a second trade, because one trade cannot lose $100 by itself.</td></tr>
+<tr><td>Pause condition</td><td>After 5 losing trades in a row, stop simulating and review before continuing. Skip a session whose required data is missing or out of date.</td></tr>
+<tr><td>Rule violation</td><td>Record <code>rule_followed = no</code> with a note. Take no further trades that session. Include it in the monthly review.</td></tr>
+</table>
+<p>The broker's smallest XAUUSD size is not checked. At these limits, 29 of the 68 holdout trades would be below 1 oz, and many brokers set a minimum of 1 oz (0.01 lot). Check the minimum before using these sizes with any broker.</p>
+
+<h2>10. Worked example</h2>
+<p>Trade from the training list: <strong>New York, 30 September 2024, sell</strong>. Figures are as recorded in the trade list.</p>
+<table>
+<tr><th>Step</th><th>Calculation</th><th class="num">Result</th></tr>
+<tr><td>08:30 close</td><td>from the data</td><td class="num">2637.68</td></tr>
+<tr><td>Pre-session start (New York window)</td><td>from the data</td><td class="num">2657.76</td></tr>
+<tr><td>Move</td><td>2637.68 − 2657.76</td><td class="num">−20.08</td></tr>
+<tr><td>Daily ATR</td><td>from the data</td><td class="num">32.02</td></tr>
+<tr><td>Move in ATR</td><td>20.08 ÷ 32.02</td><td class="num">−0.63</td></tr>
+<tr><td>Trend filter</td><td>300-bar EMA 2654.52; close is below it</td><td class="num">passes for a sell</td></tr>
+<tr><td>Entry</td><td>sell at 2637.68</td><td class="num">2637.68</td></tr>
+<tr><td>Stop distance</td><td>0.6 × 32.02</td><td class="num">19.21</td></tr>
+<tr><td>Stop price</td><td>2637.68 + 19.21</td><td class="num">2656.89</td></tr>
+<tr><td>Target price (recorded)</td><td>2R below entry</td><td class="num">2599.25</td></tr>
+<tr><td>Exit (recorded)</td><td>session close</td><td class="num">2634.20</td></tr>
+<tr><td>Result</td><td>R ≈ (2637.68 − 2634.20 − 0.30) ÷ 19.21</td><td class="num">+0.165R</td></tr>
+<tr><td>Position size</td><td>$50.00 ÷ 19.21</td><td class="num">2.60 oz</td></tr>
+<tr><td>Dollar result</td><td>0.165 × $50.00</td><td class="num">+$8.25</td></tr>
+</table>
+
+<h2>11. Results as backtested</h2>
+<p>Training and holdout are separate periods. The rule was found on the training period only. The holdout was set aside before the search and has since been examined several times (section 14).</p>
+<table>
+<tr><th>Period</th><th>Dates</th><th class="num">Trades</th><th class="num">Total R</th><th class="num">Avg R</th><th class="num">Win rate</th><th class="num">Profit factor</th><th class="num">t-stat</th><th class="num">Max drawdown</th><th class="num">Longest losing streak</th></tr>
+<tr><td>Training</td><td>2020-01-28 to 2024-10-23</td><td class="num">110</td><td class="num">+22.75</td><td class="num">+0.207</td><td class="num">55.5%</td><td class="num">1.76</td><td class="num">2.30</td><td class="num">3.7R</td><td class="num">5</td></tr>
+<tr><td>Holdout</td><td>2024-10-24 to 2026-10-23</td><td class="num">68</td><td class="num">+19.03</td><td class="num">+0.280</td><td class="num">63.2%</td><td class="num">2.07</td><td class="num">2.43</td><td class="num">5.2R</td><td class="num">4</td></tr>
+</table>
+<p class="small">Costs included: $0.30 spread per trade, $0.10 slippage per ounce on stop exits. Worst single trade: −1.04R in training and −1.02R in the holdout.</p>
+<h3>How the trades ended</h3>
+<table>
+<tr><th>Exit</th><th class="num">Training trades</th><th class="num">Training total R</th><th class="num">Holdout trades</th><th class="num">Holdout total R</th></tr>
+<tr><td>2R target</td><td class="num">12</td><td class="num">+23.77</td><td class="num">9</td><td class="num">+17.95</td></tr>
+<tr><td>Stop</td><td class="num">21</td><td class="num">−21.58</td><td class="num">12</td><td class="num">−12.13</td></tr>
+<tr><td>17:00 close</td><td class="num">77</td><td class="num">+20.56</td><td class="num">47</td><td class="num">+13.21</td></tr>
+</table>
+<p>Most trades end at the session close rather than at the target. In the holdout, the closes made +13.21R of the +19.03R total.</p>
+<h3>By session and direction (holdout)</h3>
+<table>
+<tr><th>Group</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Avg R</th></tr>
+<tr><td>London</td><td class="num">46</td><td class="num">70%</td><td class="num">+0.32</td></tr>
+<tr><td>New York</td><td class="num">22</td><td class="num">50%</td><td class="num">+0.20</td></tr>
+<tr><td>Buys</td><td class="num">36</td><td class="num">67%</td><td class="num">+0.15</td></tr>
+<tr><td>Sells</td><td class="num">32</td><td class="num">59%</td><td class="num">+0.43</td></tr>
+</table>
+<p>Sells beat buys in both periods (training +0.33R against +0.06R; holdout +0.43R against +0.15R). That is consistent, but it is not yet a rule. Weekday results do not hold across periods and must not be used as filters.</p>
+<h3>Uncertainty</h3>
+<p>With 68 holdout trades, the approximate 95% range for the average R is +0.05R to +0.51R, and for the win rate it is about 52% to 75%. A 50% win rate, which would be chance, falls just outside the holdout range and inside the training range. Treat the sample as small.</p>
+
+<h2>12. Robustness checks</h2>
+<h3>12.1 Session close</h3>
+<p>The same trades were re-run with the session closing earlier. Entries do not change, only exits.</p>
+<table>
+<tr><th>Session closes</th><th class="num">Training avg R</th><th class="num">Training t</th><th class="num">Holdout avg R</th><th class="num">Holdout profit factor</th><th class="num">Holdout t</th></tr>
+<tr><td>17:00 (rule)</td><td class="num">+0.207</td><td class="num">2.30</td><td class="num">+0.280</td><td class="num">2.07</td><td class="num">2.43</td></tr>
+<tr><td>16:00</td><td class="num">+0.217</td><td class="num">2.43</td><td class="num">+0.277</td><td class="num">2.09</td><td class="num">2.45</td></tr>
+<tr><td>15:00</td><td class="num">+0.162</td><td class="num">1.89</td><td class="num">+0.217</td><td class="num">1.95</td><td class="num">2.07</td></tr>
+<tr><td>14:00</td><td class="num">+0.142</td><td class="num">1.78</td><td class="num">+0.145</td><td class="num">1.64</td><td class="num">1.48</td></tr>
+</table>
+<p>The holdout stays positive with earlier closes, but its t-stat falls below the council's gate of 2.0 at 14:00. Profit depends on holding through the late session.</p>
+<h3>12.2 Spread</h3>
+<table>
+<tr><th>Spread per ounce</th><th class="num">Training avg R</th><th class="num">Training t</th><th class="num">Holdout avg R</th><th class="num">Holdout profit factor</th><th class="num">Holdout t</th></tr>
+<tr><td>$0.30 (rule)</td><td class="num">+0.207</td><td class="num">2.30</td><td class="num">+0.280</td><td class="num">2.07</td><td class="num">2.43</td></tr>
+<tr><td>$1.00</td><td class="num">+0.157</td><td class="num">1.75</td><td class="num">+0.261</td><td class="num">1.98</td><td class="num">2.26</td></tr>
+<tr><td>$2.00</td><td class="num">+0.087</td><td class="num">0.96</td><td class="num">+0.234</td><td class="num">1.84</td><td class="num">2.02</td></tr>
+</table>
+<p>Training weakens a lot with higher spreads, probably because early stops were narrower in dollars, so a fixed cost takes a larger share of the risk. The holdout survives a $2.00 spread, narrowly.</p>
+
+<h2>13. Known problems</h2>
+<ol>
+<li><strong>Optimistic fills.</strong> Entries are assumed at the exact 08:30 close. A real order would fill slightly later and often at a worse price.</li>
+<li><strong>Missing bars can hide stop-outs.</strong> If a five-minute bar is missing, the backtester cannot see a stop inside it. A test confirmed this: a stop at −1R was recorded as a close at −0.25R. The holdout is not affected, because none of its 68 trades fell on a session-day with missing bars. The training list was not checked this way. This is not fixed yet.</li>
+<li><strong>Dropped zero-volume minutes.</strong> The downloader removes one-minute candles with zero volume, so a quiet minute can leave a gap in the bars.</li>
+<li><strong>Selection.</strong> 1,819 rule variants were tried on the training data before C4 was chosen. The holdout reduces that risk but does not remove it.</li>
+<li><strong>The holdout is no longer untouched.</strong> It was used for the council verdict, the signal score, four session-close times and three spreads.</li>
+<li><strong>Small sample.</strong> About 34 trades a year. A sample big enough to judge takes roughly two years.</li>
+<li><strong>Bid prices.</strong> Dukascopy's bid prices are not a broker's prices. Real spreads widen around news and at the session opens, which is when the rule trades.</li>
+<li><strong>Slippage.</strong> $0.10 per ounce is assumed on stops. Real slippage around news can be larger.</li>
+<li><strong>The daily loss cap cannot bind alone.</strong> A full stop costs about $51, so two stops in one day exceed the $100 cap by about $3.</li>
+<li><strong>Overlap.</strong> Two trades can be open at once in the hours when both sessions overlap.</li>
+</ol>
+
+<h2>14. Status</h2>
+<table>
+<tr><th style="width:36%">Item</th><th>Status</th></tr>
+<tr><td>Backtest</td><td>Done on the training and holdout periods.</td></tr>
+<tr><td>Forward test on unseen data</td><td class="warn">Not started. The guide requires it before any real-money decision.</td></tr>
+<tr><td>Human review of the risk plan</td><td class="warn">Not yet done.</td></tr>
+<tr><td>Broker minimum size</td><td class="warn">Not yet checked.</td></tr>
+<tr><td>Missing-bar issue</td><td class="warn">Not yet fixed. The fix changes the backtest numbers and would need a new run.</td></tr>
+</table>
+
+<h2>15. What the rule does not do</h2>
+<ul>
+<li>It does not forecast prices. It applies fixed conditions to the 08:30 price on each day.</li>
+<li>It does not use volume, news, the signal score, weekdays or seasons.</li>
+<li>It does not trail stops, take partial profits or add to positions.</li>
+<li>The simulation limits in section 9 are settings, not part of the rule.</li>
+<li>It does not produce live signals. The journal records what the rule would have done, after each session closes.</li>
+</ul>
+
+<h2>16. Parameters</h2>
+<table>
+<tr><th>Name in code</th><th>Value</th><th>Meaning</th></tr>
+<tr><td>setup</td><td>session_momentum</td><td>The setup type.</td></tr>
+<tr><td>delay_minutes</td><td class="num">30</td><td>Minutes after the open for the decision bar.</td></tr>
+<tr><td>momentum_atr</td><td class="num">0.6</td><td>Move threshold, in daily ATR.</td></tr>
+<tr><td>stop_atr</td><td class="num">0.6</td><td>Stop distance, in daily ATR.</td></tr>
+<tr><td>target_r</td><td class="num">2.0</td><td>Target distance, in stop distances.</td></tr>
+<tr><td>trend_ema</td><td class="num">300</td><td>EMA length, in five-minute bars.</td></tr>
+<tr><td>vol_filter</td><td class="num">0.0</td><td>Volatility filter, off.</td></tr>
+<tr><td>direction</td><td>both</td><td>Buys and sells both allowed.</td></tr>
+<tr><td>sessions</td><td>london, new_york</td><td>Sessions traded.</td></tr>
+<tr><td>Bar size</td><td class="num">5 min</td><td>Built from one-minute candles.</td></tr>
+<tr><td>ATR length</td><td class="num">14 days</td><td>Trading days, ending 17:00 New York time.</td></tr>
+<tr><td>Coverage</td><td class="num">80%</td><td>Share of a session's bars needed for it to be used.</td></tr>
+<tr><td>Spread</td><td class="num">$0.30/oz</td><td>Charged once per trade.</td></tr>
+<tr><td>Slippage</td><td class="num">$0.10/oz</td><td>Charged on stop exits only.</td></tr>
+<tr><td>Split</td><td class="num">70% / 30%</td><td>Training first, holdout last.</td></tr>
+</table>
+
+<h2>17. Reproducing the results</h2>
+<p>From the repository root, on a Mac with the project's virtual environment:</p>
+<div class="formula">python -m xauusd_council fetch --start 2020-01-01 --out data/xauusd_m1.csv<br>
+bash scripts/run_xauusd_council.sh<br>
+python -m xauusd_council journal --rule data/council/real-20261026-095550/result.json</div>
+<p>The council run writes a transcript and a JSON record, including every trade's entry, stop, target, exit and result. The rule is stored in that record and can be loaded with <code>Rule.from_dict</code>. Other documents in <code>docs/</code> hold the step-by-step record and the checklist.</p>
+
+<h2>18. Sources</h2>
+<ul class="small">
+<li>Repository: <code>xauusd_council/</code> (market, rules, backtest, bots, council, journal); <code>docs/xauusd-guide-steps-1-3.md</code>; <code>docs/xauusd-guide-complete.md</code>.</li>
+<li>Council run <code>real-20261026-095550</code>, on the Mac only (the data and output folders are git-ignored).</li>
+<li>Price data: Dukascopy XAUUSD one-minute bid candles, UTC.</li>
+</ul>
+</body>
+</html>

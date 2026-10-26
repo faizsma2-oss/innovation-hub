@@ -268,6 +268,10 @@ Verified 16 October 2026: 63 tests pass. The three example cases, reviewer corre
 
 The Hub is the app people use. The **Innovation Coordinator** in `coordinator/` is the agent behind it: its instructions, output templates, memory schema and test cases. The agent only creates **PROPOSED** records, and a reviewer approves them in the Hub. Read `docs/agent-integration.md` for the full plan.
 
+## Also in this repository: the XAUUSD council
+
+`xauusd_council/` is a separate experiment: a council of bots (2 to 20, scripted or driven by Claude) that propose, debate and vote on one trading rule for gold in the London and New York sessions. Every figure comes from one backtester, and the winning rule is checked on data the bots never saw. Start with `python -m xauusd_council demo`, and read `xauusd_council/README.md`.
+
 ## Milestone roadmap
 
 Every milestone leaves a working demo. The AI arrives only after the app can store, review and approve records without it.
