@@ -240,9 +240,9 @@ A backtest with no compounding. Each trade is sized to risk $50.
 
 Holdout stops are much wider than training stops (median $48, against $14). That leaves **29 holdout trades under 1 oz**. Many brokers' smallest XAUUSD size is 1 oz (0.01 lot). **Check your broker's minimum before trading this.** If the minimum is 1 oz, those trades would risk more than $50, up to about $160 (1.6% of the balance). The limit was not changed to hide this, and the user confirmed it with this known. A larger balance would fix it, and that choice belongs to the user.
 
-### 5.6 Step 4 fields set so far
+### 5.6 Step 4 fields (confirmed)
 
-The balance and risk limit above are confirmed by the user. The rest were chosen by the assistant at the user's request and are not confirmed yet.
+The user confirmed all of these on 26 October 2026. They were proposed by the assistant at the user's request.
 
 - **Max simulated risk per trade:** 0.5% ($50).
 - **Max simulated daily loss:** $100 (1%). With at most one trade per session, two full stops is the most a day can lose, so this cap can't bind on its own.
@@ -286,11 +286,11 @@ The days after 23 October 2026 haven't been looked at for this rule. They are th
 
 ## 8. Guide steps 4 to 6: where things stand
 
-- **Step 4, risk rules:** section 5.6, with decisions still open (see below).
+- **Step 4, risk rules:** section 5.6, confirmed by the user on 26 October 2026.
 - **Step 5, trade log:** a forward journal is built (`xauusd_council/journal.py`). It logs each new session once its 17:00 close is in the data. No forward sessions are logged yet, because the data ends on 23 October 2026.
 - **Step 6, weekly review:** starts after a week of journal entries.
 
-Open decisions for the user: confirm the Step 4 limits (section 5.6), and check the broker's minimum position size before trading.
+Open decision for the user: check the broker's minimum position size before trading.
 
 ---
 
