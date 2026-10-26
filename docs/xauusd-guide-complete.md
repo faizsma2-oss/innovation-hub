@@ -11,26 +11,42 @@
 | 1. Time windows | Done (backtest) | Nothing |
 | 2. Signal score | Done for one setup. The score did not separate trades reliably | Nothing (see steps 1 to 3 record, section 4) |
 | 3. Position size | Done. $10,000 balance and 0.5% risk, confirmed by the user on 26 Oct 2026 | Check the broker's minimum size: **you** |
-| 4. Risk rules | Confirmed by the user on 26 Oct 2026. Written after testing, which the guide does not intend | Nothing. Do not change them to fit results |
+| 4. Risk rules | Confirmed by the user on 26 Oct 2026. Written after testing, which the guide does not intend | Decide the daily-loss cap flag ($100 or $110). Do not change anything else to fit results |
 | 5. Trade log | Built and tested (`journal` command). Waiting for sessions after 23 Oct 2026 | Run `fetch` and `journal` after each session, and fill in the hand columns: **you** |
 | 6. Review | Scheduled monthly. Needs at least one month of journal rows | Run the monthly review: **you**, with the steps below |
 | Final checklist | Partly met (see below) | Forward test on unseen data, which has not started: **time** |
 
 ---
 
-## Step 4: risk rules (confirmed)
+## Step 4: strict risk rules
 
-- **Entry:** 08:30 local time (30 minutes after the open). Buy if the close is at least 0.6 × daily ATR above the pre-session start price and above the 300-bar EMA. Sell if it is at least 0.6 × daily ATR below and below the EMA. At most one entry per session.
-- **Stop:** 0.6 × daily ATR from entry.
-- **Target:** 2 × the stop distance from entry.
-- **Exit:** the first of stop, target, or the 17:00 session close.
-- **Max simulated risk per trade:** 0.5% of the simulated balance ($50 on $10,000).
-- **Max simulated daily loss:** $100 (1%). With at most one trade per session, two full stops is the most a day can lose.
-- **Max open positions:** 2, one per session. London and New York overlap for about four hours a day.
-- **Pause:** after 5 losing trades in a row, stop simulating and review.
-- **Rule violation:** log `rule_followed = no` and take no further trades that session.
+Written after the backtest, not before. The guide intends the rules to come first, so these are frozen for the forward test. Changing them starts a new test.
 
----
+| Required field | Rule |
+|---|---|
+| Entry condition | 08:30 local time (30 minutes after the open), using that bar's close. Buy if the close is at least 0.6 × daily ATR above the pre-session start price and above the 300-bar EMA. Sell if it is at least 0.6 × daily ATR below and below the EMA. At most one entry per session. |
+| Invalidation or stop condition | 0.6 × daily ATR from entry. |
+| Target or exit condition | 2 × the stop distance from entry, or the 17:00 session close, whichever comes first. If the stop and target are both hit in one 5-minute bar, count the stop. |
+| Maximum simulated risk per trade | 0.5% of the simulated balance: $50 on $10,000. |
+| Maximum simulated daily loss | $100 (1%). See the flag below. |
+| Maximum open positions | 2, one per session. |
+| Pause conditions | (a) After 5 losing trades in a row, stop simulating and review before continuing. (b) Skip a session if its required data is missing or out of date. |
+| What happens after a rule violation | Log `rule_followed = no` with a note. Take no further trades that session. Include it in the monthly review. |
+
+**Flag for your decision: the $100 daily cap does not work as written.** A full stop costs about $51 with costs (the stops in the trade list lose $51 on average at $50 risk). Two full stops in one day lose about $103, which is above $100. The cap also can't stop a second trade, because one trade can't lose $100 by itself. So the cap never binds. Options: (a) keep $100 and accept that a double-stop day exceeds it by about $3, or (b) change it to $110 (1.1%). The confirmed figure has not been changed. The user decides.
+
+### Pre-trade check (the guide's six questions)
+
+Worked on the 2024-09-30 New York sell as an example. This is a historical example, not a live check.
+
+| Question | Answer |
+|---|---|
+| Is the setup allowed in this time window? | Yes. 08:30 New York local time, inside the 08:00 to 17:00 session, and the first entry of that session. |
+| Does the signal score pass the threshold? | Not required. The score isn't part of this rule, because it didn't separate trades reliably (steps 1 to 3 record, section 4). Adding a score filter now would be a new rule. For this example the score was 60. |
+| Are entry, stop and exit rules present? | Yes. Entry 2637.68, stop 2656.89, target 2599.25 (2R), exit at 17:00 at the latest. |
+| Is the position within the risk cap? | Yes. 2.60 oz × $19.21 = $49.95, within $50. |
+| Is any required data missing? | No. All four inputs are present. |
+| Has a human reviewed the plan? | **Pending: you.** |
 
 ## Step 5: trade log
 
@@ -104,8 +120,9 @@ This row records the holdout test of the rule. Missing fields are marked MISSING
 
 ## What remains, in order
 
-1. **You:** check the broker's minimum position size (Step 3).
-2. **You:** after each trading day, run `fetch` and `journal`, and fill in the hand columns (Step 5).
-3. **You:** after the first full month of journal rows, run the monthly review (Step 6).
-4. **You:** keep the forward test going for at least about two years before any real-money decision, because a sample big enough to judge takes that long at this frequency.
-5. **Us:** commit the analysis scripts for steps 1 and 2, and fix the backtester's missing-bar issue (see the steps 1 to 3 record, section 3.4). Fixing it changes the backtest numbers, so the holdout result must be recomputed and reported as a new run.
+1. **You:** decide the daily-loss cap: keep $100, or change it to $110 (Step 4 flag).
+2. **You:** check the broker's minimum position size (Step 3).
+3. **You:** after each trading day, run `fetch` and `journal`, and fill in the hand columns (Step 5).
+4. **You:** after the first full month of journal rows, run the monthly review (Step 6).
+5. **You:** keep the forward test going for at least about two years before any real-money decision, because a sample big enough to judge takes that long at this frequency.
+6. **Us:** commit the analysis scripts for steps 1 and 2, and fix the backtester's missing-bar issue (see the steps 1 to 3 record, section 3.4). Fixing it changes the backtest numbers, so the holdout result must be recomputed and reported as a new run.
