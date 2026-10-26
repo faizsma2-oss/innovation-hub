@@ -245,7 +245,7 @@ Holdout stops are much wider than training stops (median $48, against $14). That
 The user confirmed all of these on 26 October 2026. They were proposed by the assistant at the user's request.
 
 - **Max simulated risk per trade:** 0.5% ($50).
-- **Max simulated daily loss:** $100 (1%). With at most one trade per session, two full stops is the most a day can lose, so this cap can't bind on its own.
+- **Max simulated daily loss:** $100 (1%), kept by your decision on 26 October 2026. Two full stops cost about $103 with costs, so a day where both sessions stop out exceeds the cap by about $3. The cap cannot stop a second trade.
 - **Max open positions:** 2, one per session. London and New York overlap for about four hours a day, so two trades can be open together.
 - **Pause condition:** after 5 losing trades in a row, stop simulating and review.
 - **Rule violation:** log `rule_followed = no` and take no further trades that session.

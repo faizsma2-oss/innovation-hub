@@ -11,7 +11,7 @@
 | 1. Time windows | Done (backtest) | Nothing |
 | 2. Signal score | Done for one setup. The score did not separate trades reliably | Nothing (see steps 1 to 3 record, section 4) |
 | 3. Position size | Done. $10,000 balance and 0.5% risk, confirmed by the user on 26 Oct 2026 | Check the broker's minimum size: **you** |
-| 4. Risk rules | Confirmed by the user on 26 Oct 2026. Written after testing, which the guide does not intend | Decide the daily-loss cap flag ($100 or $110). Do not change anything else to fit results |
+| 4. Risk rules | Confirmed by the user on 26 Oct 2026, with the $100 daily cap kept. Written after testing, which the guide does not intend | A human review of the plan (not yet done). Do not change anything to fit results |
 | 5. Trade log | Built and tested (`journal` command). Waiting for sessions after 23 Oct 2026 | Run `fetch` and `journal` after each session, and fill in the hand columns: **you** |
 | 6. Review | Scheduled monthly. Needs at least one month of journal rows | Run the monthly review: **you**, with the steps below |
 | Final checklist | Partly met (see below) | Forward test on unseen data, which has not started: **time** |
@@ -28,12 +28,12 @@ Written after the backtest, not before. The guide intends the rules to come firs
 | Invalidation or stop condition | 0.6 × daily ATR from entry. |
 | Target or exit condition | 2 × the stop distance from entry, or the 17:00 session close, whichever comes first. If the stop and target are both hit in one 5-minute bar, count the stop. |
 | Maximum simulated risk per trade | 0.5% of the simulated balance: $50 on $10,000. |
-| Maximum simulated daily loss | $100 (1%). See the flag below. |
+| Maximum simulated daily loss | $100 (1%), kept by the user's decision on 26 Oct 2026. A day where both sessions hit their stops loses about $103 with costs, which the user accepted. The cap cannot stop a second trade. |
 | Maximum open positions | 2, one per session. |
 | Pause conditions | (a) After 5 losing trades in a row, stop simulating and review before continuing. (b) Skip a session if its required data is missing or out of date. |
 | What happens after a rule violation | Log `rule_followed = no` with a note. Take no further trades that session. Include it in the monthly review. |
 
-**Flag for your decision: the $100 daily cap does not work as written.** A full stop costs about $51 with costs (the stops in the trade list lose $51 on average at $50 risk). Two full stops in one day lose about $103, which is above $100. The cap also can't stop a second trade, because one trade can't lose $100 by itself. So the cap never binds. Options: (a) keep $100 and accept that a double-stop day exceeds it by about $3, or (b) change it to $110 (1.1%). The confirmed figure has not been changed. The user decides.
+**Decision recorded:** the $100 daily cap is kept. A full stop costs about $51 with costs, so two full stops in one day lose about $103, which is above the cap. The cap cannot stop a second trade, because one trade cannot lose $100 by itself. The user accepted this on 26 October 2026.
 
 ### Pre-trade check (the guide's six questions)
 
@@ -120,7 +120,7 @@ This row records the holdout test of the rule. Missing fields are marked MISSING
 
 ## What remains, in order
 
-1. **You:** decide the daily-loss cap: keep $100, or change it to $110 (Step 4 flag). Then review the Step 4 plan, since no human has reviewed it yet.
+1. **You:** review the Step 4 plan. No human has reviewed it yet.
 2. **You:** check the broker's minimum position size (Step 3).
 3. **You:** after each trading day, run `fetch` and `journal`, and fill in the hand columns (Step 5).
 4. **You:** after the first full month of journal rows, run the monthly review (Step 6).
