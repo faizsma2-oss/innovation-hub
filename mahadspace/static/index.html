@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>MahadSpace</title>
+  <meta name="theme-color" content="#080a0f">
+  <meta name="application-name" content="MahadSpace">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MahadSpace">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+
+  
+
+
+
+
+
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<dialog id="telegramDialog" class="telegram-dialog">
+  <div class="telegram-dialog-content">
+    <button
+      id="telegramDialogClose"
+      class="telegram-dialog-close"
+      type="button"
+      aria-label="Close"
+    >
+      ×
+    </button>
+
+    <h2>Connect Telegram</h2>
+
+    <p id="telegramDialogDescription">
+      Enter the phone number attached to your Telegram account.
+    </p>
+
+    <div id="telegramPhoneStep">
+      <label for="telegramPhoneInput">Phone number</label>
+
+      <input
+        id="telegramPhoneInput"
+        type="tel"
+        placeholder="+971501234567"
+        autocomplete="tel"
+      >
+
+      <button id="telegramStartButton" type="button">
+        Send Telegram code
+      </button>
+    </div>
+
+    <div id="telegramCodeStep" hidden>
+      <label for="telegramCodeInput">Telegram login code</label>
+
+      <input
+        id="telegramCodeInput"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        placeholder="12345"
+      >
+
+      <button id="telegramCodeButton" type="button">
+        Verify code
+      </button>
+    </div>
+
+    <div id="telegramPasswordStep" hidden>
+      <label for="telegramPasswordInput">
+        Telegram two-step-verification password
+      </label>
+
+      <input
+        id="telegramPasswordInput"
+        type="password"
+        autocomplete="current-password"
+      >
+
+      <button id="telegramPasswordButton" type="button">
+        Finish connection
+      </button>
+    </div>
+
+    <p
+      id="telegramDialogMessage"
+      class="message"
+      aria-live="polite"
+    ></p>
+  </div>
+</dialog>
+<dialog id="telegramAccountLinkDialog" class="telegram-dialog telegram-account-link-dialog">
+  <div class="telegram-dialog-content">
+    <button id="telegramAccountLinkDialogClose" class="telegram-dialog-close" type="button" aria-label="Close">×</button>
+    <h2>Choose broker account</h2>
+    <p id="telegramAccountLinkMember">Select an account for this Telegram member.</p>
+    <div class="telegram-account-search-controls">
+      <input id="telegramAccountOptionSearch" type="search" placeholder="Search UID, name or account" aria-label="Search broker accounts">
+      <select id="telegramAccountOptionBroker" aria-label="Filter broker accounts">
+        <option value="all">All brokers</option>
+        <option value="vantage">Vantage</option>
+        <option value="puprime">PU Prime</option>
+      </select>
+    </div>
+    <div id="telegramAccountOptionStatus" class="import-message" aria-live="polite"></div>
+    <div id="telegramAccountOptionResults" class="telegram-account-option-results">
+      <div class="empty-state">Search uploaded broker accounts.</div>
+    </div>
+  </div>
+</dialog>
+<dialog id="tradingRecordAssignDialog" class="telegram-dialog telegram-account-link-dialog">
+  <div class="telegram-dialog-content">
+    <button id="tradingRecordAssignDialogClose" class="telegram-dialog-close" type="button" aria-label="Close">×</button>
+    <h2>Assign Telegram member</h2>
+    <p id="tradingRecordAssignContext">Choose the Telegram member who owns this broker UID.</p>
+    <div class="telegram-account-search-controls">
+      <input id="tradingRecordMemberSearch" type="search" placeholder="Search Telegram name or username" aria-label="Search Telegram members">
+    </div>
+    <div id="tradingRecordAssignStatus" class="import-message" aria-live="polite"></div>
+    <div id="tradingRecordMemberResults" class="telegram-account-option-results">
+      <div class="empty-state">Search the Telegram member directory.</div>
+    </div>
+  </div>
+</dialog>
+<body>
+  <main id="authView" class="page">
+    <section class="brand-panel">
+      <div class="brand">MahadSpace</div>
+
+      <div>
+        <h1>Your accounts. One secure dashboard.</h1>
+        <p>
+          Connect Telegram, Vantage and PU Prime, then view your
+          account information from one protected platform.
+        </p>
+      </div>
+
+      <div class="brand-footer">
+        Secure account connections and private user data
+      </div>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <div class="tabs">
+          <button
+            id="signInTab"
+            class="tab-button active"
+            type="button"
+          >
+            Sign in
+          </button>
+
+          <button
+            id="signUpTab"
+            class="tab-button"
+            type="button"
+          >
+            Sign up
+          </button>
+        </div>
+
+        <section id="signInSection">
+          <h2 class="form-heading">Welcome back</h2>
+          <p class="form-description">
+            Sign in to manage your connected accounts.
+          </p>
+
+          <form id="signInForm">
+            <div class="field">
+              <label for="loginEmail">Email</label>
+              <input
+                id="loginEmail"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label for="loginPassword">Password</label>
+              <input
+                id="loginPassword"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+            
+            <div style="text-align: right; margin: -6px 0 18px;">
+               <a
+                  href="/forgot-password"
+                  style="
+                     color: #444;
+                     font-size: 13px;
+                     font-weight: 700;
+                     text-decoration: none;
+                  "
+             >
+                  Forgot password?
+              </a>
+            </div>
+            <button
+              id="signInButton"
+              class="primary-button"
+              type="submit"
+            >
+              Sign in
+            </button>
+
+            <div
+              id="signInMessage"
+              class="message"
+              aria-live="polite"
+            ></div>
+          </form>
+        </section>
+
+        <section id="signUpSection" class="hidden">
+          <h2 class="form-heading">Create account</h2>
+          <p class="form-description">
+            Create your platform login before connecting your services.
+          </p>
+
+          <form id="signUpForm">
+            <div class="field">
+              <label for="registerName">Display name</label>
+              <input
+                id="registerName"
+                name="display_name"
+                type="text"
+                autocomplete="name"
+                maxlength="120"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label for="registerEmail">Email</label>
+              <input
+                id="registerEmail"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label for="registerPassword">
+                Password
+              </label>
+              <input
+                id="registerPassword"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                minlength="12"
+                maxlength="128"
+                required
+              />
+            </div>
+
+            <button
+              id="signUpButton"
+              class="primary-button"
+              type="submit"
+            >
+              Create account
+            </button>
+
+            <div
+              id="signUpMessage"
+              class="message"
+              aria-live="polite"
+            ></div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <main id="dashboardView" class="dashboard hidden">
+    <header class="topbar">
+      <div class="brand">MahadSpace</div>
+
+      <nav class="dashboard-nav" aria-label="Dashboard sections">
+        <button class="dashboard-nav-button active" data-dashboard-page="overview" type="button" aria-label="Dua"><span lang="ar" dir="rtl">دعاء</span></button>
+        <button class="dashboard-nav-button" data-dashboard-page="rebate-insights" type="button">Rebate Insights</button>
+        <button class="dashboard-nav-button" data-dashboard-page="matched-records" type="button">Trading Records</button>
+        <button class="dashboard-nav-button" data-dashboard-page="telegram-members" type="button">Telegram Members</button>
+      </nav>
+
+      <div class="topbar-actions">
+        <button id="topTelegramButton" class="top-action-icon top-telegram-button" type="button" aria-label="Telegram" data-tooltip="Telegram" title="Telegram">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21.5 3.4 18.4 20c-.2 1.2-.9 1.5-1.9.9l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-8c.4-.3-.1-.5-.6-.2L6.2 14l-4.7-1.5c-1-.3-1-1 .2-1.5L20 3c.9-.3 1.7.2 1.5.4Z"/>
+          </svg>
+        </button>
+        <button id="topUploadButton" class="top-action-icon top-upload-button" type="button" aria-label="Upload reports" data-tooltip="Upload reports" title="Upload reports">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/>
+          </svg>
+        </button>
+        <button id="installAppButton" class="top-action-icon top-install-button hidden" type="button" aria-label="Install app" data-tooltip="Install app" title="Install app">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
+          </svg>
+        </button>
+        <button
+          id="logoutButton"
+          class="top-action-icon"
+          type="button"
+          aria-label="Log out"
+          data-tooltip="Log out"
+          title="Log out"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="dashboard-content">
+      <div class="welcome">
+        <h1 id="welcomeHeading">Welcome</h1>
+        <p id="welcomeDescription">
+          Telegram members with manually imported broker rebate reports.
+          Each account is active with either at least $50 equity or a trade within 30 days. Any active account makes its Telegram member active.
+        </p>
+        <div class="dashboard-actions">
+          <a class="action-button" data-page-action="uploads" href="/api/reports/template.csv">Download report CSV template</a>
+        </div>
+        <div id="dashboardMessage" class="import-message" aria-live="polite"></div>
+      </div>
+
+      <div id="connectionGrid" class="connection-grid">
+        <article class="connection-card telegram-connection-card" data-feature-page="telegram">
+          <div class="telegram-connection-main">
+            <div class="telegram-icon-shell" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img">
+                <path d="M21.5 3.4 18.4 20c-.2 1.2-.9 1.5-1.9.9l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-8c.4-.3-.1-.5-.6-.2L6.2 14l-4.7-1.5c-1-.3-1-1 .2-1.5L20 3c.9-.3 1.7.2 1.5.4Z"/>
+              </svg>
+            </div>
+            <div class="telegram-connection-copy">
+              <h2>Telegram</h2>
+              <p id="telegramAccountStatus" aria-live="polite">Checking saved session…</p>
+            </div>
+            <span id="telegramStatus" class="status telegram-live-status">Not connected</span>
+          </div>
+
+          <button
+            id="telegramConnectButton"
+            class="connection-button telegram-connect-cta"
+            type="button"
+          >
+            <span>Connect</span>
+          </button>
+        </article>
+
+        <article class="connection-card" data-feature-page="uploads">
+          <div>
+            <div class="connection-icon">V</div>
+            <h2>Vantage · IB Account Report</h2>
+            <p>
+              Upload account, balance, trading, deposit or opened-account Excel reports.
+            </p>
+            <span id="vantageIbAccountReportStatus" class="status">No report imported</span>
+          </div>
+          <div class="upload-requirements">
+            <span><strong>Required:</strong> IB account report</span>
+            <span><strong>Optional:</strong> Funds and opened-account reports</span>
+          </div>
+          <input id="vantageIbAccountReportFile" class="file-input" type="file" accept=".xlsx,.csv,.json" multiple>
+          <button id="vantageIbAccountReportButton" class="connection-button" type="button">Choose files</button>
+          <div id="vantageIbAccountReportQueue" class="file-queue"></div>
+          <div class="file-queue-actions">
+            <button id="vantageIbAccountReportUpload" type="button" disabled>Upload selected files</button>
+            <button id="vantageIbAccountReportClear" type="button" disabled>Clear</button>
+          </div>
+          <button id="vantageIbAccountReportRemoveData" class="remove-imported-data" type="button">
+            Remove imported IB account report data
+          </button>
+        </article>
+
+        <article class="connection-card" data-feature-page="uploads">
+          <div>
+            <div class="connection-icon">V₿</div>
+            <h2>Vantage · Rebate Reports</h2>
+            <p>
+              Upload the Vantage daily or monthly rebate Excel report.
+            </p>
+            <span id="vantageRebateStatus" class="status">No report imported</span>
+          </div>
+          <div class="upload-requirements">
+            <span><strong>Optional for activity:</strong> Rebate report</span>
+            <span>Use only for rebate and commission analysis</span>
+          </div>
+          <input id="vantageRebateFile" class="file-input" type="file" accept=".xlsx,.csv" multiple>
+          <button id="vantageRebateButton" class="connection-button" type="button">Choose files</button>
+          <div id="vantageRebateQueue" class="file-queue"></div>
+          <div class="file-queue-actions">
+            <button id="vantageRebateUpload" type="button" disabled>Upload selected files</button>
+            <button id="vantageRebateClear" type="button" disabled>Clear</button>
+          </div>
+          <button id="vantageRebateRemoveData" class="remove-imported-data" type="button">
+            Remove imported rebate data
+          </button>
+        </article>
+
+        <article class="connection-card" data-feature-page="uploads">
+          <div>
+            <div class="connection-icon">P</div>
+            <h2>PU Prime · IB Account Report</h2>
+            <p>
+              Upload account, balance, trading, deposit or opened-account Excel reports.
+            </p>
+            <span id="puprimeIbAccountReportStatus" class="status">No report imported</span>
+          </div>
+          <div class="upload-requirements">
+            <span><strong>Required:</strong> IB account report</span>
+            <span><strong>Optional:</strong> Funds and opened-account reports</span>
+          </div>
+          <input id="puprimeIbAccountReportFile" class="file-input" type="file" accept=".xlsx,.csv,.json" multiple>
+          <button id="puprimeIbAccountReportButton" class="connection-button" type="button">Choose files</button>
+          <div id="puprimeIbAccountReportQueue" class="file-queue"></div>
+          <div class="file-queue-actions">
+            <button id="puprimeIbAccountReportUpload" type="button" disabled>Upload selected files</button>
+            <button id="puprimeIbAccountReportClear" type="button" disabled>Clear</button>
+          </div>
+          <button id="puprimeIbAccountReportRemoveData" class="remove-imported-data" type="button">
+            Remove imported IB account report data
+          </button>
+        </article>
+
+        <article class="connection-card" data-feature-page="uploads">
+          <div>
+            <div class="connection-icon">P₿</div>
+            <h2>PU Prime · Rebate Reports</h2>
+            <p>
+              Upload the PU Prime daily or monthly rebate Excel report.
+            </p>
+            <span id="puprimeRebateStatus" class="status">No report imported</span>
+          </div>
+          <div class="upload-requirements">
+            <span><strong>Optional for activity:</strong> Rebate report</span>
+            <span>Use only for rebate and commission analysis</span>
+          </div>
+          <input id="puprimeRebateFile" class="file-input" type="file" accept=".xlsx,.csv" multiple>
+          <button id="puprimeRebateButton" class="connection-button" type="button">Choose files</button>
+          <div id="puprimeRebateQueue" class="file-queue"></div>
+          <div class="file-queue-actions">
+            <button id="puprimeRebateUpload" type="button" disabled>Upload selected files</button>
+            <button id="puprimeRebateClear" type="button" disabled>Clear</button>
+          </div>
+          <button id="puprimeRebateRemoveData" class="remove-imported-data" type="button">
+            Remove imported rebate data
+          </button>
+        </article>
+      </div>
+
+      <nav class="telegram-subnav telegram-mode-switcher" data-content-page="telegram" aria-label="Telegram tools">
+        <button class="telegram-subnav-button active" data-telegram-subpage-button="overview" type="button">
+          <span><b>Overview</b></span>
+        </button>
+        <button class="telegram-subnav-button" data-telegram-subpage-button="links" type="button">
+          <span><b>UID links</b></span>
+        </button>
+        <button class="telegram-subnav-button" data-telegram-subpage-button="prompt" type="button">
+          <span><b>Messages</b></span>
+        </button>
+        <button class="telegram-subnav-button" data-telegram-subpage-button="activity" type="button">
+          <span><b>Activity</b></span>
+        </button>
+      </nav>
+
+      <section id="telegramWorkspacePanel" class="outreach-panel"
+        data-content-page="telegram" data-telegram-subpage="overview">
+        <div class="telegram-studio-header">
+          <div>
+            <h2>Workspace overview</h2>
+            <p class="telegram-section-copy">Connection, tracking and recent activity in one place.</p>
+          </div>
+          <div class="outreach-actions telegram-header-actions">
+            <button id="telegramRefreshWorkspaceButton" type="button">Refresh</button>
+            <button id="checkTelegramSetupButton" class="primary" type="button">Check groups</button>
+          </div>
+        </div>
+
+        <div class="telegram-metric-strip" aria-label="Telegram summary">
+          <div><span>Delivered</span><strong id="telegramMetricSent">0</strong><small id="telegramMetricSentRecent">0 this week</small></div>
+          <div><span>Recipients</span><strong id="telegramMetricRecipients">0</strong><small>unique contacts</small></div>
+          <div><span>Replies</span><strong id="telegramMetricReplies">0</strong><small id="telegramMetricPending">0 pending</small></div>
+          <div><span>Linked</span><strong id="telegramMetricLinked">0</strong><small>approved UIDs</small></div>
+        </div>
+
+        <div class="telegram-overview-columns">
+          <section class="telegram-overview-block">
+            <div class="telegram-block-heading">
+              <h3>Groups</h3>
+              <span id="telegramGroupsCheckedAt">Not checked yet</span>
+            </div>
+            <div id="telegramGroupReadiness" class="telegram-readiness-list">
+              <div data-workspace-group="discussion"><span>Discussion</span><strong>Not checked</strong><small>Run Check groups</small></div>
+              <div data-workspace-group="vip"><span>VIP</span><strong>Not checked</strong><small>Run Check groups</small></div>
+            </div>
+          </section>
+
+          <section class="telegram-overview-block">
+            <div class="telegram-block-heading"><h3>Recommended next step</h3></div>
+            <p id="telegramNextStep" class="telegram-next-step">Connect Telegram to begin.</p>
+            <div class="outreach-actions telegram-quick-actions">
+              <button type="button" data-telegram-go="links">Link a UID</button>
+              <button type="button" data-telegram-go="prompt">Compose message</button>
+              <button type="button" data-telegram-go="activity">View activity</button>
+            </div>
+          </section>
+        </div>
+        <div id="telegramWorkspaceStatus" class="import-message" aria-live="polite"></div>
+      </section>
+
+      <section id="telegramReplyDirectoryPanel" class="outreach-panel telegram-subpage-hidden"
+        data-content-page="telegram" data-telegram-subpage="activity">
+        <div class="section-heading telegram-panel-heading">
+          <div>
+            <h2>Reply inbox</h2>
+            <p class="telegram-section-copy">Review UID replies and link verified broker records.</p>
+          </div>
+          <span id="replyDirectoryCount" class="status telegram-count-pill">0 replies</span>
+        </div>
+        <div class="telegram-toolbar telegram-reply-toolbar">
+          <input id="replyDirectorySearch" type="search" placeholder="Search name, UID or broker" aria-label="Search replies">
+          <select id="replyDirectoryFilter" aria-label="Filter replies">
+            <option value="all">All replies</option>
+            <option value="pending">Pending review</option>
+            <option value="linked">Linked</option>
+            <option value="uid_not_found">UID not found</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="telegram-action-row">
+          <div class="outreach-actions">
+          <button id="connectAndScanRepliesButton" class="action-button primary" type="button">Scan replies</button>
+            <button id="exportReplyDirectoryButton" type="button">Export CSV</button>
+          </div>
+          <details class="telegram-setup-menu">
+            <summary>Scan options</summary>
+            <div class="telegram-setup-actions">
+              <label for="replyDirectoryScanDays">Look back</label>
+              <select id="replyDirectoryScanDays">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+              </select>
+              <label class="telegram-scan-option">
+                <input id="replyDirectoryScanAllChats" type="checkbox">
+                Include existing chats
+              </label>
+              <button id="eraseReplyDirectoryButton" class="remove-imported-data" type="button">Clear reply data</button>
+            </div>
+          </details>
+        </div>
+        <div id="replyDirectoryStatus" class="import-message" aria-live="polite">Ready to scan.</div>
+        <div id="replyDirectoryTable" class="recipient-preview">
+          <div class="empty-state">No replies scanned yet.</div>
+        </div>
+      </section>
+
+      <section id="telegramReplyMatcherPanel" class="outreach-panel telegram-subpage-hidden"
+        data-content-page="telegram" data-telegram-subpage="activity">
+        <div class="outreach-actions">
+          <button id="reviewRepliesToggle" class="action-button primary" type="button" aria-expanded="false">
+            Review matches (0)
+          </button>
+        </div>
+        <div id="replyReviewDetails" class="hidden">
+          <div id="replyMatchStatus" class="import-message" aria-live="polite">
+            Review only. Nothing is linked until approved.
+          </div>
+          <div id="replyMatchTable" class="recipient-preview">
+            <div class="empty-state">Run a scan to generate match suggestions.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="telegramAccountLinksPanel" class="outreach-panel telegram-subpage-hidden"
+        data-content-page="telegram" data-telegram-subpage="links">
+        <div class="telegram-studio-header">
+          <div>
+            <h2>UID links</h2>
+            <p class="telegram-section-copy">Telegram user IDs connected to broker UIDs.</p>
+          </div>
+        </div>
+
+        <section class="telegram-manual-link-section" aria-labelledby="telegramManualUidLinkHeading">
+          <div class="telegram-block-heading">
+            <h3 id="telegramManualUidLinkHeading">Manual UID link</h3>
+          </div>
+          <form id="telegramManualUidLinkForm" class="telegram-manual-link-form">
+            <label class="telegram-manual-link-field" for="telegramManualMemberName">
+              <span>Telegram member name</span>
+              <select id="telegramManualMemberName" name="telegram_id" required>
+                <option value="">Select member</option>
+              </select>
+            </label>
+            <label class="telegram-manual-link-field" for="telegramManualBrokerUid">
+              <span>UID</span>
+              <input id="telegramManualBrokerUid" name="uid" type="text" autocomplete="off" maxlength="40" placeholder="Enter UID" required>
+            </label>
+            <button id="telegramManualUidLinkButton" class="primary" type="submit">Link UID</button>
+          </form>
+          <div id="telegramManualUidLinkStatus" class="import-message" aria-live="polite"></div>
+        </section>
+
+        <section class="telegram-approved-links-section" aria-labelledby="telegramApprovedLinksHeading">
+          <div class="telegram-block-heading">
+            <h3 id="telegramApprovedLinksHeading">Approved links</h3>
+            <span id="telegramApprovedLinkCount">0 links</span>
+          </div>
+          <div id="telegramApprovedLinkList" class="telegram-approved-link-list">
+            <div class="empty-state">No UID links yet.</div>
+          </div>
+        </section>
+
+        <details id="telegramAutomaticMatching" class="telegram-advanced-tools">
+          <summary>
+            <span>Automatic matching</span>
+            <small>Group scan and suggestions</small>
+          </summary>
+          <div class="telegram-advanced-tools-content">
+            <div class="outreach-actions telegram-header-actions">
+              <button id="refreshTelegramAccountLinksButton" type="button">Refresh</button>
+              <button id="scanTelegramAccountLinksButton" class="primary" type="button">Scan groups</button>
+            </div>
+
+        <div class="telegram-metric-strip telegram-account-link-metrics" aria-label="Account matching summary">
+          <div><span>Members</span><strong id="telegramLinkMetricDiscovered">0</strong><small>known IDs</small></div>
+          <div><span>Linked</span><strong id="telegramLinkMetricLinked">0</strong><small>with UID</small></div>
+          <div><span>Remaining</span><strong id="telegramLinkMetricRemaining">0</strong><small>need UID</small></div>
+          <div><span>Suggested</span><strong id="telegramLinkMetricSuggested">0</strong><small>ready to review</small></div>
+        </div>
+
+        <div id="telegramAccountLinkStatus" class="import-message" aria-live="polite">Run Scan groups to discover account links.</div>
+
+        <section class="telegram-member-assignment-section" aria-labelledby="telegramMemberAssignmentHeading">
+          <div class="telegram-member-assignment-header">
+            <div>
+              <h3 id="telegramMemberAssignmentHeading">Member UID assignments</h3>
+              <span id="telegramMemberAssignmentCount">0 members</span>
+            </div>
+            <select id="telegramMemberAssignmentFilter" aria-label="Filter Telegram members by UID status">
+              <option value="remaining">Remaining</option>
+              <option value="all">All members</option>
+              <option value="linked">Linked</option>
+            </select>
+          </div>
+          <div class="telegram-toolbar telegram-member-assignment-toolbar">
+            <input id="telegramMemberAssignmentSearch" type="search" placeholder="Search member, username or Telegram ID" aria-label="Search Telegram members">
+            <select id="telegramMemberAssignmentGroup" aria-label="Filter members by Telegram group">
+              <option value="all">VIP + Discussion</option>
+              <option value="vip">VIP</option>
+              <option value="discussion">Discussion</option>
+            </select>
+          </div>
+          <div id="telegramMemberAssignmentList" class="telegram-member-assignment-list">
+            <div class="empty-state">Scan Telegram groups to load members.</div>
+          </div>
+        </section>
+
+        <details id="telegramAccountLinkSuggestions" class="telegram-account-link-suggestions">
+          <summary>
+            <span>Match suggestions</span>
+            <small id="telegramAccountLinkSuggestionCount">0 awaiting review</small>
+          </summary>
+          <div class="telegram-toolbar telegram-account-link-toolbar">
+            <input id="telegramAccountLinkSearch" type="search" placeholder="Search Telegram name, username or UID" aria-label="Search account links">
+            <select id="telegramAccountLinkStatusFilter" aria-label="Filter account-link status">
+              <option value="review">Needs approval</option>
+              <option value="all">All statuses</option>
+              <option value="suggested">Strong suggestions</option>
+              <option value="needs_review">Needs review</option>
+              <option value="linked">Linked</option>
+              <option value="unmatched">Unmatched</option>
+              <option value="conflict">Conflicts</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select id="telegramAccountLinkGroupFilter" aria-label="Filter by Telegram group">
+              <option value="all">VIP + Discussion</option>
+              <option value="vip">VIP</option>
+              <option value="discussion">Discussion</option>
+            </select>
+            <select id="telegramAccountLinkBrokerFilter" aria-label="Filter by broker">
+              <option value="all">All brokers</option>
+              <option value="Vantage">Vantage</option>
+              <option value="PU Prime">PU Prime</option>
+            </select>
+            <button id="exportTelegramAccountLinksButton" type="button">Export CSV</button>
+          </div>
+
+          <div class="telegram-account-link-actions">
+            <span id="telegramAccountLinkSelectionCount">0 selected</span>
+            <button id="selectStrongTelegramLinksButton" type="button">Select strong</button>
+            <button id="clearTelegramLinkSelectionButton" type="button">Clear</button>
+            <button id="approveTelegramLinksButton" class="primary" type="button" disabled>Approve selected</button>
+          </div>
+          <div id="telegramAccountLinkTable" class="recipient-preview telegram-account-link-table">
+            <div class="empty-state">No account-link scan saved yet.</div>
+          </div>
+        </details>
+          </div>
+        </details>
+      </section>
+
+      <section id="telegramMessagingPanel" class="outreach-panel telegram-subpage-hidden"
+        data-content-page="telegram" data-telegram-subpage="prompt">
+        <div class="telegram-studio-header">
+          <div>
+            <h2>Compose message</h2>
+            <p id="outreachAudienceHelp" class="telegram-section-copy">New members discovered after tracking begins.</p>
+          </div>
+          <span class="telegram-manual-badge"><i></i> Manual</span>
+        </div>
+
+        <div class="outreach-controls">
+          <div class="outreach-field">
+            <label for="outreachGroup">Telegram group</label>
+            <select id="outreachGroup">
+              <option value="discussion">Discussion</option>
+              <option value="vip">VIP</option>
+            </select>
+          </div>
+
+          <div class="outreach-field">
+            <label for="outreachAudience">Audience</label>
+            <select id="outreachAudience">
+              <option value="new">New members</option>
+              <option value="existing">All members</option>
+              <option value="unmatched">Unmatched</option>
+              <option value="active">Active members</option>
+              <option value="inactive">Inactive members</option>
+            </select>
+          </div>
+
+          <div class="outreach-field">
+            <label for="outreachTemplate">Message template</label>
+            <select id="outreachTemplate">
+              <option value="welcome">Welcome</option>
+              <option value="record_request">Record request</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+
+          <div class="outreach-field outreach-message-field">
+            <div class="telegram-field-heading">
+              <label for="outreachMessage">Message</label>
+              <span id="outreachCharacterCount">0 / 4096</span>
+            </div>
+            <textarea id="outreachMessage" maxlength="4096"></textarea>
+          </div>
+        </div>
+
+        <div class="telegram-action-row">
+          <div class="outreach-actions telegram-primary-actions">
+            <button id="previewRecipientsButton" class="primary" type="button">Preview recipients</button>
+            <button id="clearMessageButton" type="button">Clear message</button>
+          </div>
+          <details class="telegram-setup-menu">
+            <summary>Setup</summary>
+            <div class="telegram-setup-actions">
+              <button id="initializeTrackingButton" type="button">Start tracking</button>
+              <button id="telegramDisconnectButton" type="button">Disconnect</button>
+            </div>
+          </details>
+        </div>
+
+        <div id="outreachStatus" class="import-message" aria-live="polite"></div>
+        <div id="telegramRecipientTools" class="telegram-toolbar telegram-recipient-toolbar" hidden>
+          <input id="recipientSearch" type="search" placeholder="Search recipients" aria-label="Search recipients">
+          <span id="recipientSelectionCount">0 selected</span>
+          <button id="selectAllRecipientsButton" type="button">Select all</button>
+          <button id="clearRecipientSelectionButton" type="button">Clear</button>
+          <button id="exportRecipientsButton" type="button">Export CSV</button>
+        </div>
+        <div id="recipientPreview" class="recipient-preview">
+          <div class="empty-state">Preview recipients to continue.</div>
+        </div>
+
+        <div class="manual-send-confirmation telegram-send-lock">
+          <div class="telegram-lock-copy">
+            <label>
+              <input id="outreachConfirm" type="checkbox">
+              Reviewed
+            </label>
+            <label for="outreachConfirmationText">Type <strong>SEND</strong></label>
+          </div>
+          <input id="outreachConfirmationText" type="text" autocomplete="off" maxlength="20" placeholder="Type SEND">
+        </div>
+
+        <div class="outreach-actions">
+          <button id="sendOutreachButton" class="send-button" type="button" disabled>Send messages</button>
+        </div>
+      </section>
+
+      <section id="telegramHistoryPanel" class="outreach-panel telegram-subpage-hidden"
+        data-content-page="telegram" data-telegram-subpage="activity">
+        <div class="telegram-studio-header">
+          <div>
+            <h2>Delivery history</h2>
+            <p class="telegram-section-copy">Successful deliveries saved by MahadSpace.</p>
+          </div>
+          <div class="outreach-actions telegram-header-actions">
+            <button id="refreshOutreachHistoryButton" type="button">Refresh</button>
+            <button id="exportOutreachHistoryButton" type="button">Export CSV</button>
+          </div>
+        </div>
+        <div class="telegram-toolbar">
+          <input id="outreachHistorySearch" type="search" placeholder="Search recipient or Telegram ID" aria-label="Search delivery history">
+          <select id="outreachHistoryGroup" aria-label="Filter delivery history by group">
+            <option value="all">All groups</option>
+            <option value="discussion">Discussion</option>
+            <option value="vip">VIP</option>
+          </select>
+        </div>
+        <div id="outreachHistoryStatus" class="import-message" aria-live="polite">Loading delivery history…</div>
+        <div id="outreachHistoryTable" class="recipient-preview">
+          <div class="empty-state">No successful deliveries saved yet.</div>
+        </div>
+      </section>
+
+      <section class="helpful-overview" data-content-page="overview">
+        <header class="overview-dua-band">
+          <div class="overview-dua-mark" aria-hidden="true">﷽</div>
+          <div class="overview-dua-copy">
+            <span>مَہَد کے لیے ایک دعا</span>
+            <p lang="ur" dir="rtl">اللہ آپ کی زندگی کو سکون، برکت، کامیابی اور روشنی سے بھر دے۔ آمین۔</p>
+          </div>
+          <details class="overview-dua-details">
+            <summary>Full dua</summary>
+            <div class="overview-dua-full">
+              <blockquote lang="ur" dir="rtl">
+                اللہ آپ کو اتنی ترقی عطا فرمائے، مَہَد، کہ آپ کو زندگی میں کبھی کسی کمی کا احساس نہ ہو۔ اللہ کی بارگاہ میں آپ کا مقام اتنا بلند ہو کہ آپ کو جنتُ الفردوس نصیب ہو۔ میری بس یہی دعا ہے کہ آپ کی ہر منزل آسان ہو، ہر خواب خیر میں ڈھلے، اور آپ کی زندگی سکون، برکت اور روشنی سے بھر جائے۔ آمین یا رب العالمین۔
+              </blockquote>
+              <p>May Allah grant you abundant success, make every path easy, and fill every chapter of your life with peace, blessings and light.</p>
+            </div>
+          </details>
+        </header>
+
+        <div class="overview-context-row">
+          <span id="overviewPeriod"><strong>Report period</strong> · Waiting for rebate data</span>
+          <span id="overviewLastUpdated">Checking report freshness…</span>
+        </div>
+
+        <section class="overview-priority-band" aria-label="Today's operational priority">
+          <div class="overview-priority-copy">
+            <span>Priority today</span>
+            <strong id="overviewPriorityTitle">Loading the next action…</strong>
+            <small id="overviewPriorityDetail">Reviewing Telegram membership and broker coverage.</small>
+          </div>
+          <div class="overview-priority-stat"><span>Match coverage</span><strong id="overviewPriorityCoverage">0%</strong></div>
+          <div class="overview-priority-stat"><span>Unassigned UIDs</span><strong id="overviewPriorityUnassigned">0</strong></div>
+          <div class="overview-priority-stat"><span>Unknown activity</span><strong id="overviewPriorityUnknown">0</strong></div>
+          <div class="overview-priority-action-wrap"><button id="overviewPriorityAction" class="overview-priority-action" type="button" data-overview-action="brokers">Open records</button></div>
+        </section>
+
+        <section class="overview-summary-strip" aria-label="Account overview">
+          <button class="overview-summary-item" type="button" data-overview-action="telegram-all"><span>Telegram members</span><strong id="overviewMemberTotal">0</strong><small id="overviewMemberGroups">From connected groups</small></button>
+          <button class="overview-summary-item active" type="button" data-overview-action="active"><span>Active members</span><strong id="overviewActiveMembers">0</strong><small id="overviewActiveRate">0% of classified members</small></button>
+          <button id="overviewLinkingGapCard" class="overview-summary-item inactive" type="button" data-overview-action="needs-match"><span>Linking gaps</span><strong id="overviewInactiveMembers">0</strong><small id="overviewLinkingGapDetail">Broker UIDs and members needing links</small></button>
+          <button class="overview-summary-item" type="button" data-overview-action="matched"><span>Matched members</span><strong id="overviewAccountTotal">0</strong><small id="overviewMatchCoverage">Current broker-report coverage</small></button>
+          <button class="overview-summary-item" type="button" data-overview-action="brokers"><span>Total balance</span><strong id="overviewTotalBalance">$0</strong><small id="overviewBalanceAccounts">Imported account reports</small></button>
+          <button class="overview-summary-item rebate" type="button" data-overview-action="rebates"><span>Total rebate</span><strong id="overviewTotalRebate">$0</strong><small id="overviewRebateRows">0 transaction rows</small></button>
+        </section>
+
+        <div class="overview-main-grid">
+          <section class="overview-panel">
+            <div class="overview-panel-header">
+              <div><span class="overview-section-kicker">UID activity</span><h2 id="overviewActivityTitle">0 of 0 active</h2></div>
+              <span>Saved Telegram links matched to broker reports</span>
+            </div>
+            <div class="overview-activity">
+              <div class="overview-activity-head"><strong id="overviewActivityPercent">0%</strong><span>classified members active</span></div>
+              <div class="overview-progress-track" aria-hidden="true"><i id="overviewActivityBar"></i></div>
+              <div class="overview-activity-legend"><span id="overviewActivityActive">0 active</span><span id="overviewActivityInactive">0 inactive</span></div>
+              <p class="overview-definition">An account is active when equity is at least $50 or its last trade is within 30 days. One active account makes the Telegram member active.</p>
+            </div>
+          </section>
+
+          <section class="overview-panel">
+            <div class="overview-panel-header"><div><span class="overview-section-kicker">Next actions</span><h2>Needs attention</h2></div></div>
+            <ul id="overviewAttentionList" class="overview-attention-list"></ul>
+          </section>
+        </div>
+
+        <section class="overview-panel" aria-labelledby="overviewWatchlistHeading">
+          <div class="overview-panel-header">
+            <div><span class="overview-section-kicker">Member watchlist</span><h2 id="overviewWatchlistHeading">People requiring follow-up</h2></div>
+            <div class="overview-watchlist-tabs" role="tablist" aria-label="Member watchlist category">
+              <button class="active" type="button" data-overview-watchlist="needs_uid" role="tab">Needs match <span id="overviewWatchlistNeedsUidCount">0</span></button>
+              <button type="button" data-overview-watchlist="inactive" role="tab">Inactive <span id="overviewWatchlistInactiveCount">0</span></button>
+              <button type="button" data-overview-watchlist="unknown" role="tab">Unknown <span id="overviewWatchlistUnknownCount">0</span></button>
+            </div>
+          </div>
+          <ul id="overviewMemberWatchlist" class="overview-watchlist"></ul>
+        </section>
+
+        <section class="overview-panel">
+          <div class="overview-panel-header">
+            <div><span class="overview-section-kicker">Broker coverage</span><h2>Vantage and PU Prime</h2></div>
+            <span>Comparable figures in one view</span>
+          </div>
+          <div class="table-wrap">
+            <table class="overview-broker-table">
+              <thead><tr><th>Broker</th><th>Linked UIDs</th><th>Matched</th><th>Active</th><th>Inactive</th><th>Balance</th><th>Rebate</th><th>Review</th></tr></thead>
+              <tbody id="overviewBrokerRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="overview-secondary-grid">
+          <section class="overview-panel">
+            <div class="overview-panel-header"><div><span class="overview-section-kicker">Rebate performance</span><h2>Current period</h2></div><span id="overviewRebatePeriod">No period</span></div>
+            <div class="overview-rebate-facts">
+              <div class="overview-rebate-fact"><span>Notional value</span><strong id="overviewNotional">$0</strong></div>
+              <div class="overview-rebate-fact"><span>Total lots</span><strong id="overviewLots">0</strong></div>
+              <div class="overview-rebate-fact"><span>Rebate earners</span><strong id="overviewRebateMembers">0</strong></div>
+              <div class="overview-rebate-fact"><span>Trading days</span><strong id="overviewTradingDays">0</strong></div>
+              <div class="overview-rebate-fact"><span>Peak day</span><strong id="overviewPeakDay">—</strong></div>
+              <div class="overview-rebate-fact"><span>Top earner</span><strong id="overviewTopEarner">—</strong></div>
+            </div>
+          </section>
+
+          <section class="overview-panel">
+            <div class="overview-panel-header"><div><span class="overview-section-kicker">Data health</span><h2>Connections and reports</h2></div></div>
+            <ul id="overviewHealthList" class="overview-health-list"></ul>
+          </section>
+        </div>
+
+        <nav class="overview-actions" aria-label="Overview actions">
+          <button type="button" data-overview-action="inactive">Inactive members</button>
+          <button type="button" data-overview-action="brokers">Trading records</button>
+          <button type="button" data-overview-action="rebates">Rebate insights</button>
+          <button type="button" data-overview-action="uploads">Upload reports</button>
+          <button type="button" data-overview-action="telegram">Telegram</button>
+        </nav>
+      </section>
+
+      <section class="rebate-insights-page" data-content-page="rebate-insights">
+        <div class="rebate-insights-toolbar">
+          <div class="rebate-broker-filter" role="tablist" aria-label="Rebate broker">
+            <button class="active" data-rebate-broker="combined" role="tab" type="button">All brokers</button>
+            <button data-rebate-broker="vantage" role="tab" type="button">Vantage</button>
+            <button data-rebate-broker="puprime" role="tab" type="button">PU Prime</button>
+          </div>
+          <div class="rebate-period">
+            <strong id="rebateInsightDateRange">No rebate period</strong>
+            <span id="rebateInsightSource">Waiting for reports</span>
+          </div>
+        </div>
+
+        <div id="rebateInsightsEmpty" class="insights-empty hidden">
+          No rebate reports are available.
+        </div>
+
+        <div id="rebateInsightsContent">
+          <div class="rebate-kpi-grid">
+            <article><span>Total rebate</span><strong id="insightTotalRebate">$0</strong><small id="insightPeakDay">No peak day</small></article>
+            <article><span>Notional value</span><strong id="insightNotional">$0</strong><small id="insightRebateRate">$0 per $1M</small></article>
+            <article><span>Total lots</span><strong id="insightLots">0</strong><small id="insightTradingDays">0 trading days</small></article>
+            <article><span>Rebate members</span><strong id="insightMembers">0</strong><small id="insightAccounts">0 accounts</small></article>
+            <article><span>Average per member</span><strong id="insightAverageMember">$0</strong><small id="insightTransactions">0 transaction rows</small></article>
+            <article><span>Top 5 concentration</span><strong id="insightConcentration">0%</strong><small id="insightTopEarner">No earners</small></article>
+          </div>
+
+          <div class="rebate-insights-grid">
+            <section class="rebate-insight-panel rebate-trend-panel">
+              <div class="rebate-insight-heading">
+                <div><span>Daily performance</span><h2>Rebate trend</h2></div>
+                <div id="rebateTrendLegend" class="rebate-chart-legend"></div>
+              </div>
+              <div id="rebateTrendChart" class="rebate-trend-chart"></div>
+            </section>
+
+            <section class="rebate-insight-panel">
+              <div class="rebate-insight-heading"><div><span>Broker mix</span><h2>Comparison</h2></div></div>
+              <div id="rebateBrokerComparison" class="rebate-broker-comparison"></div>
+            </section>
+
+            <section class="rebate-insight-panel">
+              <div class="rebate-insight-heading"><div><span>Commission source</span><h2>Asset classes</h2></div></div>
+              <div id="rebateAssetClassBars" class="rebate-rank-list"></div>
+            </section>
+
+            <section class="rebate-insight-panel">
+              <div class="rebate-insight-heading"><div><span>Trading activity</span><h2>Top instruments</h2></div></div>
+              <div id="rebateInstrumentBars" class="rebate-rank-list"></div>
+            </section>
+          </div>
+
+          <div class="rebate-secondary-grid">
+            <section class="rebate-insight-panel">
+              <div class="rebate-insight-heading"><div><span>Client setup</span><h2>Account types</h2></div></div>
+              <div id="rebateAccountTypeBars" class="rebate-rank-list compact"></div>
+            </section>
+
+            <section class="rebate-insight-panel">
+              <div class="rebate-insight-heading"><div><span>Acquisition</span><h2>Campaign attribution</h2></div></div>
+              <div id="rebateCampaignBars" class="rebate-rank-list compact"></div>
+            </section>
+
+            <section class="rebate-insight-panel">
+              <div class="rebate-insight-heading"><div><span>Import checks</span><h2>Data quality</h2></div></div>
+              <div id="rebateDataQuality" class="rebate-quality-grid"></div>
+            </section>
+          </div>
+
+          <section class="rebate-insight-panel rebate-member-panel">
+            <div class="rebate-insight-heading">
+              <div><span>Member-level performance</span><h2>Rebate earners</h2></div>
+              <strong id="rebateEarnerCount">0 members</strong>
+            </div>
+            <div id="rebateMemberTable"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="data-section member-import-card" data-content-page="uploads">
+        <div class="section-heading">
+          <div>
+            <h2>Telegram member CSV</h2>
+            <p>Import a CSV containing NUMBER, VIP, DISCUSSION, UID and BROKER. This updates dashboard matching data and never sends a Telegram message.</p>
+          </div>
+          <span id="telegramMemberImportStatus" class="status">No member CSV imported</span>
+        </div>
+        <div class="outreach-actions">
+          <input id="telegramMemberFile" class="file-input" type="file" accept=".csv">
+          <button id="telegramMemberChoose" class="action-button primary" type="button">Choose member CSV</button>
+          <button id="telegramMemberRemove" class="remove-imported-data" type="button" disabled>Remove imported member data</button>
+        </div>
+        <div id="telegramMemberImportMessage" class="import-message" aria-live="polite">
+          Imported UIDs will be matched against the relevant PU Prime or Vantage account report.
+        </div>
+      </section>
+
+      <section class="telegram-members-page" data-content-page="telegram-members">
+        <div class="telegram-members-shell">
+          <div class="telegram-members-toolbar" aria-label="Telegram member controls">
+            <input id="telegramMembersSearch" type="search" placeholder="Search Telegram name, username, ID or UID" aria-label="Search Telegram members">
+            <select id="telegramMembersBrokerFilter" aria-label="Filter Telegram members by broker">
+              <option value="all">All brokers</option>
+              <option value="Vantage">Vantage</option>
+              <option value="PU Prime">PU Prime</option>
+            </select>
+            <select id="telegramMembersStatusFilter" aria-label="Filter Telegram members by UID status">
+              <option value="all">All members</option>
+              <option value="active">Active members</option>
+              <option value="inactive">Inactive members</option>
+              <option value="unknown">Unknown activity</option>
+              <option value="linked">With UIDs</option>
+              <option value="unlinked">Without UIDs</option>
+              <option value="current">In latest reports</option>
+              <option value="historical">Known from report history</option>
+              <option value="unverified">Unverified UIDs</option>
+            </select>
+            <button id="refreshTelegramMembersButton" type="button">Refresh</button>
+            <button id="scanTelegramMembersButton" class="primary" type="button">Extract from groups</button>
+            <button id="exportTelegramMembersButton" type="button">Export CSV</button>
+          </div>
+
+          <div class="telegram-members-summary" aria-label="Telegram member UID summary">
+            <div><span>Members</span><strong id="telegramMembersSummaryMembers">0</strong></div>
+            <div><span>Active</span><strong id="telegramMembersSummaryActive">0</strong></div>
+            <div><span>Inactive</span><strong id="telegramMembersSummaryInactive">0</strong></div>
+            <div><span>With UIDs</span><strong id="telegramMembersSummaryLinked">0</strong></div>
+            <div><span>UID links</span><strong id="telegramMembersSummaryUids">0</strong></div>
+          </div>
+
+          <section class="telegram-member-bulk-panel" aria-labelledby="telegramMemberBulkHeading">
+            <div class="telegram-member-bulk-heading">
+              <div>
+                <span>Manual entry</span>
+                <h2 id="telegramMemberBulkHeading">Link member UID</h2>
+              </div>
+            </div>
+            <form id="telegramMemberBulkForm" class="telegram-member-bulk-form">
+              <label>
+                <span>Telegram member name</span>
+                <select id="telegramMemberManualName" name="telegram_id" required>
+                  <option value="">Select member</option>
+                </select>
+              </label>
+              <label>
+                <span>UID</span>
+                <input id="telegramMemberManualUid" name="uid" type="text" inputmode="numeric" autocomplete="off" maxlength="40" placeholder="Enter UID" required>
+              </label>
+              <div class="telegram-member-bulk-actions">
+                <button id="telegramMemberBulkSave" class="primary" type="submit">Link UID</button>
+              </div>
+            </form>
+            <div id="telegramMembersPageStatus" class="import-message" aria-live="polite">Loading Telegram member links…</div>
+          </section>
+
+          <section id="telegramMemberRemovalPanel" class="telegram-member-removal-panel" aria-labelledby="telegramMemberRemovalHeading">
+            <div class="telegram-member-bulk-heading">
+              <div>
+                <span>Membership</span>
+                <h2 id="telegramMemberRemovalHeading">Remove from Telegram</h2>
+              </div>
+            </div>
+            <form id="telegramMemberRemovalForm" class="telegram-member-removal-form">
+              <label>
+                <span>Telegram member</span>
+                <select id="telegramMemberRemovalName" name="telegram_id" required>
+                  <option value="">Select member</option>
+                </select>
+              </label>
+              <fieldset class="telegram-member-removal-groups">
+                <legend>Remove from</legend>
+                <div class="telegram-member-removal-group-options">
+                  <label><input id="telegramMemberRemovalDiscussion" name="groups" type="checkbox" value="discussion" disabled> Discussion</label>
+                  <label><input id="telegramMemberRemovalVip" name="groups" type="checkbox" value="vip" disabled> VIP</label>
+                </div>
+              </fieldset>
+              <button id="telegramMemberRemovalSubmit" class="telegram-member-removal-submit" type="submit" disabled>Remove member</button>
+              <div id="telegramMemberRemovalStatus" class="import-message telegram-member-removal-status" aria-live="polite">Select a member and the Telegram group(s).</div>
+            </form>
+          </section>
+
+          <section class="telegram-members-directory" aria-labelledby="telegramMembersDirectoryHeading">
+            <div class="telegram-members-directory-heading">
+              <div>
+                <span>Directory</span>
+                <h2 id="telegramMembersDirectoryHeading">Telegram members</h2>
+              </div>
+              <strong id="telegramMembersShownCount">0 shown</strong>
+            </div>
+            <div id="telegramMembersPageList" class="telegram-members-list">
+              <div class="empty-state">No Telegram members loaded yet.</div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="matched-records-page" data-content-page="matched-records">
+        <div class="matched-records-shell">
+          <div class="matched-records-toolbar" aria-label="Trading records filters">
+            <input id="matchedRecordsSearch" type="search" placeholder="Search member, UID or account" aria-label="Search trading records">
+            <select id="matchedRecordsBrokerFilter" aria-label="Filter trading records by broker">
+              <option value="all">All brokers</option>
+              <option value="Vantage">Vantage</option>
+              <option value="PU Prime">PU Prime</option>
+            </select>
+            <select id="matchedRecordsStatusFilter" aria-label="Filter trading records by status">
+              <option value="matched">Matched UIDs</option>
+              <option value="needs_match">Needs current match</option>
+              <option value="active">Active members</option>
+              <option value="inactive">Inactive members</option>
+              <option value="historical">Known historical UIDs</option>
+              <option value="missing_report">UIDs missing in reports</option>
+              <option value="no_telegram">Broker rows without Telegram</option>
+              <option value="all">All records</option>
+            </select>
+            <select id="matchedRecordsTradeFilter" aria-label="Filter trading records by latest trade">
+              <option value="all">Any trade date</option>
+              <option value="7">Traded within 7 days</option>
+              <option value="30">Traded within 30 days</option>
+              <option value="31_90">Last trade 31–90 days ago</option>
+              <option value="over_90">Last trade over 90 days ago</option>
+              <option value="none">No trade date</option>
+            </select>
+            <select id="matchedRecordsSort" aria-label="Sort trading records">
+              <option value="priority">Review priority</option>
+              <option value="member_asc">Member A–Z</option>
+              <option value="trade_desc">Latest trade first</option>
+              <option value="balance_desc">Highest balance</option>
+              <option value="equity_desc">Highest equity</option>
+              <option value="rebate_desc">Highest rebate</option>
+              <option value="accounts_desc">Most accounts</option>
+            </select>
+            <button id="matchedRecordsRefreshButton" class="primary" type="button">Refresh</button>
+            <button id="exportMatchedRecordsButton" type="button">Export CSV</button>
+            <button id="matchedRecordsResetButton" type="button">Reset</button>
+          </div>
+
+          <div class="matched-records-summary" aria-label="Matched broker records summary">
+            <div><span>Telegram members</span><strong id="matchedRecordsSummaryMembers">0</strong></div>
+            <div><span>Matched members</span><strong id="matchedRecordsSummaryMatched">0</strong><button id="matchedRecordsResolveMembersButton" class="summary-action" type="button" hidden>Resolve 0</button></div>
+            <div><span>Active members</span><strong id="matchedRecordsSummaryActive">0</strong></div>
+            <div><span>Total balance</span><strong id="matchedRecordsSummaryBalance">$0</strong></div>
+            <div><span>Total rebate</span><strong id="matchedRecordsSummaryRebate">$0</strong></div>
+          </div>
+
+          <section id="matchedRecordsResolver" class="matched-records-resolver hidden" aria-live="polite">
+            <div>
+              <span>Quick fix</span>
+              <strong id="matchedRecordsResolverTitle">Resolve the records in this view</strong>
+              <small id="matchedRecordsResolverDetail"></small>
+            </div>
+            <div id="matchedRecordsResolverActions" class="matched-records-resolver-actions"></div>
+          </section>
+
+          <section class="matched-records-table-panel" aria-labelledby="matchedRecordsHeading">
+            <div class="matched-records-table-heading">
+              <div>
+                <span id="matchedRecordsScope">Waiting for trading data</span>
+                <h2 id="matchedRecordsHeading">Client trading records</h2>
+              </div>
+              <strong id="matchedRecordsShownCount">0 rows</strong>
+            </div>
+            <div id="matchedRecordsStatus" class="matched-records-status" aria-live="polite">Loading trading records…</div>
+            <div id="matchedRecordsTable"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="broker-reports-page" data-content-page="brokers">
+        <div class="broker-report-shell">
+          <div class="broker-report-controls" aria-label="Broker report filters">
+            <label class="broker-filter-field">
+              <span>Broker</span>
+              <select id="brokerReportBroker">
+                <option value="combined">All brokers</option>
+                <option value="vantage">Vantage</option>
+                <option value="puprime">PU Prime</option>
+              </select>
+            </label>
+            <label class="broker-filter-field">
+              <span>Information</span>
+              <select id="brokerReportDataset">
+                <option value="member_rows">Members</option>
+                <option value="account_rows">Account details</option>
+                <option value="funds">Fund transactions</option>
+                <option value="opened_accounts">Opened accounts</option>
+                <option value="rebates">Rebate report rows</option>
+              </select>
+            </label>
+            <label id="brokerReportStatusField" class="broker-filter-field">
+              <span>Status</span>
+              <select id="brokerReportStatus">
+                <option value="all">Active and inactive</option>
+                <option value="active">Active only</option>
+                <option value="inactive">Inactive only</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="broker-summary-strip" aria-label="Selected broker summary">
+            <div class="broker-summary-item"><span>Unique members</span><strong id="brokerSummaryMembers">0</strong></div>
+            <div class="broker-summary-item"><span>Active</span><strong id="brokerSummaryActive">0</strong></div>
+            <div class="broker-summary-item"><span>Inactive</span><strong id="brokerSummaryInactive">0</strong></div>
+            <div class="broker-summary-item"><span>Accounts</span><strong id="brokerSummaryAccounts">0</strong></div>
+            <div class="broker-summary-item"><span>Total balance</span><strong id="brokerSummaryBalance">$0</strong></div>
+            <div class="broker-summary-item"><span>Rebate rows</span><strong id="brokerSummaryRebates">0</strong></div>
+          </div>
+
+          <div class="broker-dataset-heading">
+            <div><span id="brokerReportScope">All brokers</span><h2 id="brokerReportTitle">Members</h2></div>
+            <div class="broker-heading-actions">
+              <strong id="brokerReportCount">0 rows</strong>
+              <button id="brokerReportMatchedRecordsButton" type="button">View trading records</button>
+              <button id="brokerReportClubButton" type="button">Club Telegram users to UIDs</button>
+            </div>
+          </div>
+          <div id="brokerReportTable"></div>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
