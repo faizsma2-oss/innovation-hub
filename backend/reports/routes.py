@@ -12,13 +12,15 @@ from fastapi import APIRouter, HTTPException
 from .. import db
 from ..meetings import calendar
 from ..meetings.routes import reminders
+from ..research import pilot as pilot_rules
 from ..research.routes import log_run
 from ..scale.assistant import get_assistant
 
 router = APIRouter(tags=["reports"])
 
 STAGES = [
-    ("Screening", ("Submitted", "Under review", "Needs clarification")),
+    # "Routed": sent to a department today, with a wider problem (or an employee's review request) for the team.
+    ("Screening", ("Submitted", "Routed", "Under review", "Needs clarification")),
     ("Choose a solution", ("Accepted",)),
     ("Research", ("Research",)),
     ("Pilot", ("Pilot planning", "Pilot running")),
@@ -33,11 +35,13 @@ def stage_of(status: str) -> str | None:
 
 
 def innovation_records(conn) -> list[dict]:
-    """Opportunities only: routine routed requests and linked duplicates aren't part of the portfolio."""
+    """Opportunities only: routine routed requests and linked duplicates aren't part of the portfolio.
+    A routed request that is also on an innovation track (a wider problem, or an employee-requested review)
+    IS an opportunity: the department handles today's need, the team still owes a decision."""
     rows = conn.execute("SELECT * FROM submissions WHERE innovation_track != 'none'"
                         " OR status IN ('Accepted', 'Research', 'Pilot planning', 'Pilot running', 'Scaling',"
                         " 'Rolling out', 'In operation', 'Stopped')").fetchall()
-    return [db.to_public(row) for row in rows if row["status"] not in ("Linked", "Routed", "Resolved")]
+    return [db.to_public(row) for row in rows if row["status"] not in ("Linked", "Resolved")]
 
 
 def owner_of(record: dict) -> str:
@@ -61,12 +65,12 @@ def decisions_needed(records: dict) -> list[dict]:
                               "detail": (r.get("recommendation") or {}).get("reason", ""), "who_decides": "Innovation team",
                               "waiting_since": r["created_at"][:10]})
         pilot = research.get("pilot") or {}
-        evaluations, decided = pilot.get("evaluations") or [], {d["round"] for d in pilot.get("decisions") or []}
-        if r["status"] == "Pilot running" and evaluations and evaluations[-1]["round"] not in decided:
+        latest = pilot_rules.evaluation_to_decide(pilot) if r["status"] == "Pilot running" else None
+        if latest:
             decisions.append({"id": sid, "title": r["title"], "decision": "Decide the pilot: scale, extend, revise or stop",
-                              "detail": f"Verdict {evaluations[-1]['verdict']}, recommends {evaluations[-1]['recommendation']}",
+                              "detail": f"Verdict {latest['verdict']}, recommends {latest['recommendation']}",
                               "who_decides": "Innovation team",
-                              "waiting_since": (evaluations[-1].get("evaluated_at") or "")[:10] or None})
+                              "waiting_since": (latest.get("evaluated_at") or "")[:10] or None})
 
     return decisions
 
@@ -100,9 +104,9 @@ DUE_WEEKDAY, DUE_HOUR = 0, 8
 
 @router.post("/api/reports/weekly")
 def weekly_report():
-    """Prepared on request: the last 7 days up to today."""
+    """Prepared on request: the last 7 days up to and including today."""
     end = calendar.today()
-    return build_report(end - timedelta(days=7), end, "manual")
+    return build_report(end - timedelta(days=6), end, "manual")
 
 
 def week_due(now: datetime) -> datetime:
@@ -178,7 +182,9 @@ def build_report(start: date, end: date, trigger: str) -> dict:
                                  "one_off": case["calc"]["one_off_total"], "yearly": case["calc"]["yearly_cost_total"]})
         realised = []
         for sid, r in records.items():
-            checkins = [c for c in ((r.get("research") or {}).get("scale") or {}).get("checkins", []) if c.get("result")]
+            # Only check-ins logged this week: the report says what happened inside its own period.
+            checkins = [c for c in ((r.get("research") or {}).get("scale") or {}).get("checkins", [])
+                        if c.get("result") and since <= (c.get("logged_at") or "") < until]
             if checkins:
                 result = checkins[-1]["result"]
                 realised.append({"id": sid, "title": r["title"], "verdict": result["verdict"],

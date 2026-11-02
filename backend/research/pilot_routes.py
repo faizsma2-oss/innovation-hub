@@ -219,14 +219,14 @@ def evaluate_pilot(submission_id: str):
 def decide(submission_id: str, body: DecisionIn):
     with db.connect() as conn:
         record, research, pilot = in_pilot(conn, submission_id, ("Pilot running",))
-        evaluations = [e for e in pilot.get("evaluations", []) if e["round"] == pilot.get("round", 1)]
-        if not evaluations:
-            raise HTTPException(409, "Evaluate the pilot before deciding")
-        latest = evaluations[-1]
+        latest = pilot_rules.evaluation_to_decide(pilot)
+        if latest is None:
+            raise HTTPException(409, "Evaluate the pilot before deciding" if not pilot.get("decisions")
+                                else "Evaluate the pilot again with the new measurements before deciding")
         if body.decision == "extend" and body.new_end_date.isoformat() <= pilot["setup"]["end_date"]:
             raise HTTPException(422, "The new end date must be after the current one")
         decision = {"decision": body.decision, "reason": body.reason.strip(), "by": DEMO_REVIEWER, "at": db.now(),
-                    "round": pilot.get("round", 1), "recommended": latest["recommendation"],
+                    "round": pilot.get("round", 1), "evaluation": latest["index"], "recommended": latest["recommendation"],
                     "agreed_with_recommendation": body.decision == latest["recommendation"]}
         pilot.setdefault("decisions", []).append(decision)
         if body.decision == "extend":

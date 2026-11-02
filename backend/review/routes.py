@@ -269,9 +269,12 @@ def metrics():
             "routing_accuracy": round(1 - wrong / reviewed, 2) if reviewed else None,
             "routing_corrections": corrected,
             "reviewer_time_seconds": statistics.median(review_times) if review_times else None,
+            # Accepted at some point, not just accepted right now: a caught opportunity stays caught once it
+            # moves on to research, a pilot or operation.
             "missed_opportunities": one(
-                "SELECT COUNT(*) FROM submissions WHERE status = 'Accepted' AND initial_route IN"
-                " ('it_support', 'hr', 'facilities_procurement', 'human_triage')"),
+                "SELECT COUNT(*) FROM submissions WHERE initial_route IN"
+                " ('it_support', 'hr', 'facilities_procurement', 'human_triage')"
+                " AND pk IN (SELECT submission_pk FROM submission_events WHERE event = 'accepted')"),
             "satisfaction": round(statistics.mean(ratings), 1) if ratings else None,
             "satisfaction_responses": len(ratings),
             "confirmed_resolutions": one("SELECT COUNT(*) FROM intake_sessions WHERE outcome = 'self_service'")

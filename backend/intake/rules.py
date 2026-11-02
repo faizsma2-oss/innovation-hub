@@ -45,8 +45,11 @@ def weakens_control(text: str) -> bool:
 
 
 # 2c. Text that isn't a request at all: tests, keyboard mashing, a single word.
+WORD = r"[^\W\d_]+"  # letters in any script, so an untranslated Arabic message has words too
+
+
 def is_not_a_request(text: str) -> bool:
-    words = re.findall(r"[a-zA-Z]+", text or "")
+    words = re.findall(WORD, text or "")
     if re.match(r"^\s*(test(ing)?|hello|hi|asdf+|qwerty|lorem ipsum|xxx+|\.+)\W*$", text or "", re.IGNORECASE):
         return True
     return len(words) < 3
@@ -117,7 +120,7 @@ def innovation_signals(text: str) -> list[str]:
 
 
 def is_meaningful_need(text: str) -> bool:
-    return len(re.findall(r"[a-zA-Z]+", text or "")) >= 6
+    return len(re.findall(WORD, text or "")) >= 6
 
 
 # 5. Understanding short answers.
@@ -145,7 +148,7 @@ FREQUENCY = [
 PEOPLE = (r"\b(\d+|several|multiple|all|many)\s+(people|persons|engineers|technicians|staff|employees|colleagues|"
           r"operators|team members|users|sites|halls|locations|teams)\b")
 EVERYONE = r"\b(everyone|all staff|whole (team|site|company))\b"
-QUANTIFIED = r"\d+\s*(hours?|hrs?|minutes?|mins?|days?|aed|dhs|dirhams?|usd|%)|\b(aed|usd|\$)\s*\d+"
+QUANTIFIED = r"\d+\s*(hours?|hrs?|minutes?|mins?|days?|aed|dhs|dirhams?|usd|%)|(\b(aed|usd)|\$)\s*\d+"
 
 
 def find_frequency(text: str) -> str | None:

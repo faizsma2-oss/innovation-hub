@@ -645,7 +645,12 @@ function pilotWorkHtml(record) {
   if (runningNow) html += `<div class="inline-row"><button type="button" class="primary" id="evaluate-pilot">Evaluate the pilot</button>
     <span class="muted">The verdict is calculated from the measurements; too little data means "inconclusive".</span></div>`;
   if (evaluation) html += evaluationResultHtml(evaluation);
-  if (runningNow && evaluation) html += decisionFormHtml(evaluation);
+  // Same rule as the server: after "extend", the earlier evaluation has been decided on; evaluate again first.
+  const evaluationIndex = (pilot.evaluations ?? []).lastIndexOf(evaluation);
+  const decidedOn = evaluation && (pilot.decisions ?? []).some(d => (d.round ?? 1) === round
+    && (d.evaluation != null ? d.evaluation >= evaluationIndex : (evaluation.evaluated_at ?? '') <= (d.at ?? '')));
+  if (runningNow && evaluation && !decidedOn) html += decisionFormHtml(evaluation);
+  if (runningNow && decidedOn) html += '<p class="muted">Pilot extended. Log the new measurements, then evaluate it again before the next decision.</p>';
   for (const d of pilot.decisions ?? []) {
     html += `<p class="decided"><strong>Round ${d.round}: ${DECISION_TEXT[d.decision]}</strong> by ${escapeText(d.by)} · “${escapeText(d.reason)}”
       ${d.agreed_with_recommendation ? '· agreed with the recommendation' : `· recommendation was ${escapeText(d.recommended)}`}</p>`;

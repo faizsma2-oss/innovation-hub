@@ -103,6 +103,15 @@ def offered_times(text: str, received: date, meter: list | None = None, client=N
     return {"times": check(raw["times"], text), "vague": raw["vague"], "generated_by": raw["generated_by"]}
 
 
+# A weekday is a whole word, in full or a usual short form: "month" isn't Monday, "Sunny" isn't Sunday.
+WEEKDAY_WORD = re.compile(r"\b(mon|tues?|wed(?:s|nes)?|thu(?:rs?)?|fri|sat|sun)(?:day)?\b", re.I)
+
+
+def named_weekday(quote: str) -> str | None:
+    match = WEEKDAY_WORD.search(quote or "")
+    return next(d for d in WEEKDAYS if d.startswith(match.group(1).lower()[:3])) if match else None
+
+
 def check(times: list[dict], text: str) -> list[dict]:
     flat = lambda s: re.sub(r"\s+", " ", s).strip().lower()
     email, now = flat(text), calendar.now_local()
@@ -119,8 +128,7 @@ def check(times: list[dict], text: str) -> list[dict]:
             continue
         if not quote or flat(quote) not in email:
             result["problem"] = "The quoted words aren't in the email"
-        elif (named := next((d for d in WEEKDAYS if re.search(rf"\b{d[:3]}", quote.lower())), None)) \
-                and WEEKDAYS[start.weekday()] != named:
+        elif (named := named_weekday(quote)) and WEEKDAYS[start.weekday()] != named:
             result["problem"] = f"{start:%d %B} is a {WEEKDAYS[start.weekday()].title()}, not a {named.title()}"
         if item.get("timezone"):
             try:

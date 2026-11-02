@@ -6,6 +6,7 @@ The verdict is calculated here in plain code, never by the AI:
     "not enough data" and the whole pilot is INCONCLUSIVE (recommendation: extend)
   - a change smaller than the baseline's normal variation (its standard deviation) is
     "no clear change", not an improvement
+  - a target counts as met only when the metric also improved on the baseline
   - all targets met → success (scale); some met or improving → partial (revise);
     nothing improves → no improvement (stop)
 
@@ -53,8 +54,11 @@ def evaluate(setup: dict, measurements: list[dict]) -> dict:
         row["change"] = round(change, 2)
         row["change_percent"] = round(change / row["baseline_mean"] * 100, 1) if row["baseline_mean"] else None
         lower_better = criterion["direction"] == "lower_better"
-        target_met = row["pilot_mean"] <= criterion["target"] if lower_better else row["pilot_mean"] >= criterion["target"]
         improved = change < 0 if lower_better else change > 0
+        # Being on the right side of the target only counts if the pilot moved it that way: a baseline that
+        # already beat the target and then got worse is a worse result, not a success.
+        target_met = improved and (row["pilot_mean"] <= criterion["target"] if lower_better
+                                   else row["pilot_mean"] >= criterion["target"])
         if abs(change) <= row["variation"]:
             row["status"] = "no clear change"
             row["explanation"] = (f"The change ({fmt(change)} {criterion['unit']}) is within the baseline's normal "
@@ -91,6 +95,26 @@ def evaluate(setup: dict, measurements: list[dict]) -> dict:
                               for r, c in zip(results, setup["criteria"])) else "medium")
     return {"verdict": verdict, "recommendation": recommendation, "reason": reason, "evidence_strength": evidence,
             "metrics": results}
+
+
+def evaluation_to_decide(pilot: dict) -> dict | None:
+    """The current round's latest evaluation, if no decision has been taken on it yet. After "extend" the
+    earlier evaluation has been decided on, so the pilot is evaluated again before the next decision."""
+    round_ = pilot.get("round", 1)
+    evaluations = pilot.get("evaluations") or []
+    current = [i for i, e in enumerate(evaluations) if e.get("round", 1) == round_]
+    if not current:
+        return None
+    latest = current[-1]
+    for decision in pilot.get("decisions") or []:
+        if decision.get("round", 1) != round_:
+            continue
+        decided = decision.get("evaluation")
+        if decided is None:   # decisions saved before this was recorded: compare times instead
+            decided = latest if (evaluations[latest].get("evaluated_at") or "") <= decision.get("at", "") else -1
+        if decided >= latest:
+            return None
+    return evaluations[latest] | {"index": latest}
 
 
 # ── The narrative: scripted, or written by Claude ────────────────────────────

@@ -174,9 +174,10 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
   - **Evaluate:** the verdict is calculated in code.
     - Too few measurements on any metric makes the pilot **inconclusive**, with a recommendation to extend.
     - A change within the baseline's normal variation counts as **no clear change**.
+    - A target counts as met only if the metric also improved on the baseline (a baseline that already beat the target and then got worse is "worse").
     - All targets met recommends scale; some met or improving recommends revise; none improving recommends stop.
     - The AI writes the narrative but can't change the verdict, and figures it didn't get from the data are dropped.
-  - **Decide**, with a reason:
+  - **Decide**, with a reason (after **extend**, the pilot is evaluated again before the next decision):
     - **scale** moves the request to Scaling
     - **extend** sets a new end date
     - **revise** starts a new round in Pilot planning, keeping the history
@@ -223,7 +224,7 @@ SQLite database (data/hub.db): submissions · submission_events · intake_sessio
 - **Arabic and voice in the intake chat** (`backend/intake/language.py`, `js/voice.js`): Arabic messages are translated to English for the rules (safety, routing, matching) and the replies translated back; the original words are kept for the team. Arabic safety words are checked on the original even if translation fails; Arabic-Indic digits are read correctly and a translation that adds a number is flagged. Without the AI, the chat says so in both languages and a person reads the original. A microphone button (English or Arabic) uses the browser's speech recognition; the text is shown for review and never sent by itself.
 - **Supplier documents → evidence** (`backend/companies/documents.py`): upload a PDF, Word or text file on a company page (only the text is kept). Evidence is suggested per comparison factor with the exact quote and page, checked in code (the quote must be on that page, no new numbers); sentences aimed at an AI reader ("rate this supplier 5/5") are never evidence and are flagged. Apply labels it "Supplier document: file, p. N" in the comparison and re-ranks.
 - **Evidence check for solution options** (`backend/research/evidence.py`): on request, Claude searches the web for case studies and reports on each approach. Only pages it actually opened count as sources; an option's evidence score changes only when a finding is verified, and the ranking is recalculated in code. About 30–50 cents per check.
-- 286 automated tests: `python -m pytest` (free: they never call Claude or the web)
+- 299 automated tests: `python -m pytest` (free: they never call Claude or the web)
 
 ## What does NOT exist yet
 
